@@ -12239,6 +12239,23 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
   </div>
 
   <script>
+    // [汉化修复] ver1248 的文件里烘焙了作者会话时的运行时绑定标记（data-*-bound / data-*-guard），
+    // 应用会据此跳过画布绘画、滚轮/双指缩放、时间轴平移等事件绑定。启动前统一清除，让绑定重新挂接。
+    (function () {
+      try {
+        var els = document.querySelectorAll('*');
+        for (var i = 0; i < els.length; i++) {
+          var el = els[i], names = [], attrs = el.attributes;
+          for (var j = 0; j < attrs.length; j++) {
+            var n = attrs[j].name;
+            if (/^data-.+-(bound|guard)$/i.test(n)) names.push(n);
+          }
+          for (var k = 0; k < names.length; k++) el.removeAttribute(names[k]);
+        }
+      } catch (e) { /* never break boot */ }
+    })();
+  </script>
+  <script>
     // ================================================================================================
     //  FILE MAP — single-file app. Jump between areas with Ctrl-F on "## SECTION:".
     //  ★Do NOT write a line count here. The old map said "~40k lines" while the file was 62.8k — a
