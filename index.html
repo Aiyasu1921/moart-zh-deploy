@@ -7801,7 +7801,7 @@
               <button class="paint-edit-tool-btn" type="button" data-paint-shape="ellipse" aria-label="Ellipse" data-i18n-attr="title:tool.ellipse.hint" title="円（Shift: 正円 / Alt: 中心から）" _mstaria-label="94822"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="8" rx="5.5" ry="4.5"></ellipse></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-shape="lasso-fill" aria-label="Lasso fill" data-i18n-attr="title:tool.lassoFill" title="投げ縄塗りつぶし" _mstaria-label="135655"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.7 3 2.5 4.9 2.5 7.1c0 2 1.8 3.5 4.2 3.9l-.5 2.5 2.9-2.3c2.6-.3 4.4-1.9 4.4-4.1C13.5 4.9 11.3 3 8 3z" stroke-dasharray="2.4 1.8"></path><path d="M8 5.2c-2.1 0-3.6 1-3.6 2.1 0 1.1 1.5 2 3.6 2s3.6-.9 3.6-2c0-1.1-1.5-2.1-3.6-2.1z" fill="currentColor" stroke="none" opacity="0.65"></path></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-shape="bucket" aria-label="Bucket fill" data-i18n-attr="title:tool.bucket.hint" title="塗りつぶし（タップで流し込み）" _mstaria-label="156078"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(-0.25 0.13)"><path d="M7.2 2.5l5 5-4.3 4.3a1.5 1.5 0 0 1-2.1 0L3.2 9.2a1.5 1.5 0 0 1 0-2.1z"></path><path d="M4.8 3.8l4.7 4.7"></path><path d="M13 9.5s1.5 1.9 1.5 3a1.5 1.5 0 0 1-3 0c0-1.1 1.5-3 1.5-3z" fill="currentColor" stroke="none"></path></g></svg></button>
-              <button class="paint-edit-tool-btn" type="button" data-paint-guide="persp" aria-label="Persp ruler" data-i18n-attr="title:tool.perspRuler.hint" title="透视尺：拉透视线确定灭点（锚定画布坐标，不随摄像机移动）" _mstaria-label="1008601"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(0.5 0.5)" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M3 12.5 8 3.5l5 9z"></path><path d="M8 3.5v9"></path><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"></circle></g></svg></button>
+              <button class="paint-edit-tool-btn" type="button" data-paint-guide="persp" aria-label="Persp ruler" data-i18n-attr="title:tool.perspRuler.hint" title="透视尺：拉透视线确定灭点（锚定画布坐标，不随摄像机移动）" _mstaria-label="1008601"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M2.5 13 8 3.5 13.5 13"></path><path d="M4.5 13 8 3.5l3.5 9.5"></path><path d="M5.5 9h5"></path></g><circle cx="8" cy="3.5" r="1.3" fill="currentColor" stroke="none"></circle></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-edit-tool="lasso-stamp" aria-label="Lasso cut stamp" title="Lasso cut stamp" _mstaria-label="238771"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(0 -0.44)"><ellipse cx="7" cy="6.5" rx="5" ry="3.6" stroke-dasharray="2.6 2"></ellipse><rect x="9.5" y="9.5" width="4.5" height="4.5" rx="1"></rect></g></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-edit-tool="lasso-select" aria-label="Lasso selection" title="Lasso selection" _mstaria-label="262457"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(0 -0.33)"><ellipse cx="7.5" cy="7" rx="5" ry="3.8" stroke-dasharray="2.6 2"></ellipse><path d="M10.5 10.5 13.5 13.5M13.5 10.7v2.8h-2.8"></path></g></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-edit-tool="transform" aria-label="Transform" title="Transform" _mstaria-label="138268"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7"></rect><rect x="2.5" y="2.5" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect><rect x="10.9" y="2.5" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect><rect x="2.5" y="10.9" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect><rect x="10.9" y="10.9" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect></svg></button>
@@ -14268,6 +14268,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
         'persp.needThird': { zh: '已有 2 个灭点。再画一组（2 条线）得到第三个灭点后，可计算 FOV 与焦距；或直接“完成”仅保留透视线',  ja: '消失点が2つ。あと1グループ（2本）引くと画角と焦点距離が出ます。そのまま「完了」で透視線のみ保存も可', ko: '소실점 2개. 한 그룹(2개) 더 그리면 화각·초점거리 계산 가능. 그대로 "완료"로 소실선만 저장 가능', en: '2 vanishing points so far. Draw one more group (2 lines) to compute FOV/focal length, or finish now with lines only' },
         'persp.parallel': { zh: '这组两条线几乎平行，交点过远，请重画',  ja: 'この2本はほぼ平行で交点が遠すぎます。引き直してください', ko: '이 두 선은 거의 평행해서 교점이 너무 멉니다. 다시 그리세요', en: 'These two lines are nearly parallel; the intersection is too far. Redraw them' },
+        'persp.needVideoMode': { zh: '透视尺需要在“映像編集”模式使用：请点击画布上方模式切换中的“映像編集”',  ja: 'パース定規は「映像編集」モードで使用します：画面上部のモード切替で「映像編集」を選んでください', ko: '원근자는 "영상 편집" 모드에서 사용하세요: 상단 모드 전환에서 "영상 편집"을 선택', en: 'The persp ruler needs Video Edit mode: switch to "映像編集" in the stage mode toggle' },
         'persp.vps': { zh: '灭点',  ja: '消失点', ko: '소실점', en: 'Vanishing points' },
         'persp.focal': { zh: '焦距 f',  ja: '焦点距離 f', ko: '초점거리 f', en: 'Focal length f' },
         'persp.fov': { zh: 'FOV h/v/d',  ja: '画角 横/縦/対角', ko: '화각 가로/세로/대각', en: 'FOV h/v/d' },
@@ -52080,25 +52081,29 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
 
     function perspGuideSyncUI() {
       const g = state.perspGuide;
-      const hint = document.getElementById('perspStageHint');
-      const vpR = document.getElementById('perspVpReadout');
-      const focalR = document.getElementById('perspFocalReadout');
-      const fovR = document.getElementById('perspFovReadout');
-      const doneBtn = document.getElementById('perspDoneBtn');
-      const resetBtn = document.getElementById('perspResetBtn');
-      const visibleBtn = document.getElementById('perspVisibleBtn');
-      if (hint) {
-        if (g.stage === 'linesDone') hint.textContent = t('persp.stage.linesDone');
-        else if (g.lastParallel) hint.textContent = t('persp.parallel');
-        else if (g.vps.length === 2) hint.textContent = t('persp.needThird');
-        else hint.textContent = t('persp.stage.captureLines');
-      }
-      if (vpR) vpR.textContent = String(g.vps.length);
-      if (focalR) focalR.textContent = g.focalPx > 0 ? g.focalPx.toFixed(1) + 'px' + (g.focalMm > 0 ? '(≈' + g.focalMm.toFixed(1) + 'mm)' : '') : '—';
-      if (fovR) fovR.textContent = g.fov ? g.fov.h.toFixed(1) + ' / ' + g.fov.v.toFixed(1) + ' / ' + g.fov.d.toFixed(1) + '°' : '—';
-      if (doneBtn) doneBtn.disabled = g.vps.length < 2;
-      if (resetBtn) resetBtn.disabled = !g.lines.length && g.vps.length === 0;
-      if (visibleBtn) visibleBtn.textContent = g.visible ? t('persp.visible.hide') : t('persp.visible.show');
+      if (!g) return;
+      try { // P0.5：面板刷新绝不允许影响主流程（画笔/缩放）
+        const hint = document.getElementById('perspStageHint');
+        const vpR = document.getElementById('perspVpReadout');
+        const focalR = document.getElementById('perspFocalReadout');
+        const fovR = document.getElementById('perspFovReadout');
+        const doneBtn = document.getElementById('perspDoneBtn');
+        const resetBtn = document.getElementById('perspResetBtn');
+        const visibleBtn = document.getElementById('perspVisibleBtn');
+        if (hint) {
+          if (!state.videoEditMode) hint.textContent = t('persp.needVideoMode');
+          else if (g.stage === 'linesDone') hint.textContent = t('persp.stage.linesDone');
+          else if (g.lastParallel) hint.textContent = t('persp.parallel');
+          else if (g.vps.length === 2) hint.textContent = t('persp.needThird');
+          else hint.textContent = t('persp.stage.captureLines');
+        }
+        if (vpR) vpR.textContent = String(g.vps.length);
+        if (focalR) focalR.textContent = g.focalPx > 0 ? g.focalPx.toFixed(1) + 'px' + (g.focalMm > 0 ? '(≈' + g.focalMm.toFixed(1) + 'mm)' : '') : '—';
+        if (fovR) fovR.textContent = g.fov ? g.fov.h.toFixed(1) + ' / ' + g.fov.v.toFixed(1) + ' / ' + g.fov.d.toFixed(1) + '°' : '—';
+        if (doneBtn) doneBtn.disabled = g.vps.length < 2;
+        if (resetBtn) resetBtn.disabled = !g.lines.length && g.vps.length === 0;
+        if (visibleBtn) visibleBtn.textContent = g.visible ? t('persp.visible.hide') : t('persp.visible.show');
+      } catch (e) { /* 面板刷新失败不影响主流程 */ }
     }
 
     function perspGuideMarker(ctx, dispScale, vp, label) {
@@ -58765,7 +58770,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const INLINE_TOOL_LABELS = paintToolLabels(); // ver1011: hoisted — the preset window names tools too
       // ver816: ONE settings surface. ver921: camera joined too.
       let inlineKey = '';
-      if (state.perspGuide.active) {
+      if (state.perspGuide && state.perspGuide.active) {
         inlineKey = 'persp';
       } else if (!state.paintEditTool) {
         inlineKey = paintShapeToolKind() || (state.paintTool === 'bucket' ? 'bucket' : (state.paintTool === 'eraser' ? 'eraser' : 'pen'));
