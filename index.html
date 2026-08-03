@@ -7801,6 +7801,7 @@
               <button class="paint-edit-tool-btn" type="button" data-paint-shape="ellipse" aria-label="Ellipse" data-i18n-attr="title:tool.ellipse.hint" title="円（Shift: 正円 / Alt: 中心から）" _mstaria-label="94822"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="8" rx="5.5" ry="4.5"></ellipse></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-shape="lasso-fill" aria-label="Lasso fill" data-i18n-attr="title:tool.lassoFill" title="投げ縄塗りつぶし" _mstaria-label="135655"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.7 3 2.5 4.9 2.5 7.1c0 2 1.8 3.5 4.2 3.9l-.5 2.5 2.9-2.3c2.6-.3 4.4-1.9 4.4-4.1C13.5 4.9 11.3 3 8 3z" stroke-dasharray="2.4 1.8"></path><path d="M8 5.2c-2.1 0-3.6 1-3.6 2.1 0 1.1 1.5 2 3.6 2s3.6-.9 3.6-2c0-1.1-1.5-2.1-3.6-2.1z" fill="currentColor" stroke="none" opacity="0.65"></path></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-shape="bucket" aria-label="Bucket fill" data-i18n-attr="title:tool.bucket.hint" title="塗りつぶし（タップで流し込み）" _mstaria-label="156078"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(-0.25 0.13)"><path d="M7.2 2.5l5 5-4.3 4.3a1.5 1.5 0 0 1-2.1 0L3.2 9.2a1.5 1.5 0 0 1 0-2.1z"></path><path d="M4.8 3.8l4.7 4.7"></path><path d="M13 9.5s1.5 1.9 1.5 3a1.5 1.5 0 0 1-3 0c0-1.1 1.5-3 1.5-3z" fill="currentColor" stroke="none"></path></g></svg></button>
+              <button class="paint-edit-tool-btn" type="button" data-paint-guide="persp" aria-label="Persp ruler" data-i18n-attr="title:tool.perspRuler.hint" title="透视尺：拉透视线确定灭点（锚定画布坐标，不随摄像机移动）" _mstaria-label="1008601"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(0.5 0.5)" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M3 12.5 8 3.5l5 9z"></path><path d="M8 3.5v9"></path><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"></circle></g></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-edit-tool="lasso-stamp" aria-label="Lasso cut stamp" title="Lasso cut stamp" _mstaria-label="238771"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(0 -0.44)"><ellipse cx="7" cy="6.5" rx="5" ry="3.6" stroke-dasharray="2.6 2"></ellipse><rect x="9.5" y="9.5" width="4.5" height="4.5" rx="1"></rect></g></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-edit-tool="lasso-select" aria-label="Lasso selection" title="Lasso selection" _mstaria-label="262457"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><g transform="translate(0 -0.33)"><ellipse cx="7.5" cy="7" rx="5" ry="3.8" stroke-dasharray="2.6 2"></ellipse><path d="M10.5 10.5 13.5 13.5M13.5 10.7v2.8h-2.8"></path></g></svg></button>
               <button class="paint-edit-tool-btn" type="button" data-paint-edit-tool="transform" aria-label="Transform" title="Transform" _mstaria-label="138268"><svg class="tli" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7"></rect><rect x="2.5" y="2.5" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect><rect x="10.9" y="2.5" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect><rect x="2.5" y="10.9" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect><rect x="10.9" y="10.9" width="2.6" height="2.6" fill="var(--sh-surface-2)"></rect></svg></button>
@@ -7849,6 +7850,21 @@
                 </div>
                 <div class="paint-inline-section" data-paint-inline="bucket" hidden="">
                   <div class="paint-inline-row paint-inline-hint" data-i18n="ui.referenceCurrentLayer">参照: 現在のレイヤー</div>
+                </div>
+                <!-- 透视步进尺（P0.5 交互）：拉透视线 → 灭点 → 仅透视线出口。数据均为 norm（画布）坐标，锚定画布不随摄像机移动。 -->
+                <div class="paint-inline-section" data-paint-inline="persp" hidden="">
+                  <div class="paint-inline-row paint-inline-hint" id="perspStageHint">拉透视线（每 2 条为一组，至少 2 组）</div>
+                  <div class="paint-inline-row"><span class="paint-inline-label" data-i18n="persp.vps">灭点</span><strong id="perspVpReadout">0</strong></div>
+                  <div class="paint-inline-row"><span class="paint-inline-label" data-i18n="persp.focal">焦距 f</span><strong id="perspFocalReadout">—</strong></div>
+                  <div class="paint-inline-row"><span class="paint-inline-label" data-i18n="persp.fov">FOV h/v/d</span><strong id="perspFovReadout">—</strong></div>
+                  <div class="paint-inline-row">
+                    <button id="perspDoneBtn" class="paint-tool-command-btn" type="button" data-i18n="persp.doneBtn">完成（仅透视线）</button>
+                    <button id="perspContinueBtn" class="paint-tool-command-btn" type="button" disabled="" title="P1 开发中" data-i18n="persp.continueBtn">继续步进（P1）</button>
+                  </div>
+                  <div class="paint-inline-row">
+                    <button id="perspResetBtn" class="paint-tool-command-btn" type="button" data-i18n="persp.resetBtn">重置</button>
+                    <button id="perspVisibleBtn" class="paint-tool-command-btn" type="button" data-i18n="persp.visible.hide">隐藏辅助层</button>
+                  </div>
                 </div>
                 <!-- ver816: the edit tools' own controls live here (one settings surface). -->
                 <div class="paint-inline-section" data-paint-inline="lasso-select" hidden="">
@@ -14246,6 +14262,20 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'timing.duration.short': { zh: '不足时长',  ja: '不足尺', ko: '부족 길이', en: 'Shortfall duration' },
         // ---- tool.* (18) ----
         // --- 描画ツール名 (INLINE_TOOL_LABELS 経由でパネル見出しに表示) ---
+        'tool.perspRuler': { zh: '透视尺',  ja: 'パース定規', ko: '원근자', en: 'Persp ruler' },
+        'tool.perspRuler.hint': { zh: '透视尺：拉透视线确定灭点（锚定画布坐标，不随摄像机移动）',  ja: 'パース定規：透視線から消失点を決める（用紙座標に固定、カメラに追従しない）', ko: '원근자: 소실선으로 소실점 결정(용지 좌표 고정, 카메라와 무관)', en: 'Persp ruler: set vanishing points from perspective lines (anchored to the paper, not the camera)' },
+        'persp.stage.captureLines': { zh: '第 1 步：拉透视线（每 2 条为一组，至少 2 组）',  ja: '手順1：透視線を引く（2本で1グループ、最低2グループ）', ko: '1단계: 소실선 그리기(2개씩 1그룹, 최소 2그룹)', en: 'Step 1: draw perspective lines (2 per group, ≥2 groups)' },
+        'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
+        'persp.needThird': { zh: '已有 2 个灭点。再画一组（2 条线）得到第三个灭点后，可计算 FOV 与焦距；或直接“完成”仅保留透视线',  ja: '消失点が2つ。あと1グループ（2本）引くと画角と焦点距離が出ます。そのまま「完了」で透視線のみ保存も可', ko: '소실점 2개. 한 그룹(2개) 더 그리면 화각·초점거리 계산 가능. 그대로 "완료"로 소실선만 저장 가능', en: '2 vanishing points so far. Draw one more group (2 lines) to compute FOV/focal length, or finish now with lines only' },
+        'persp.parallel': { zh: '这组两条线几乎平行，交点过远，请重画',  ja: 'この2本はほぼ平行で交点が遠すぎます。引き直してください', ko: '이 두 선은 거의 평행해서 교점이 너무 멉니다. 다시 그리세요', en: 'These two lines are nearly parallel; the intersection is too far. Redraw them' },
+        'persp.vps': { zh: '灭点',  ja: '消失点', ko: '소실점', en: 'Vanishing points' },
+        'persp.focal': { zh: '焦距 f',  ja: '焦点距離 f', ko: '초점거리 f', en: 'Focal length f' },
+        'persp.fov': { zh: 'FOV h/v/d',  ja: '画角 横/縦/対角', ko: '화각 가로/세로/대각', en: 'FOV h/v/d' },
+        'persp.doneBtn': { zh: '完成（仅透视线）',  ja: '完了（透視線のみ）', ko: '완료(소실선만)', en: 'Done (lines only)' },
+        'persp.continueBtn': { zh: '继续步进（P1）',  ja: 'ステップへ（P1）', ko: '스텝으로(P1)', en: 'Continue to steps (P1)' },
+        'persp.resetBtn': { zh: '重置',  ja: 'リセット', ko: '초기화', en: 'Reset' },
+        'persp.visible.hide': { zh: '隐藏辅助层',  ja: '補助を隠す', ko: '보조 숨기기', en: 'Hide guides' },
+        'persp.visible.show': { zh: '显示辅助层',  ja: '補助を表示', ko: '보조 표시', en: 'Show guides' },
         'tool.pen': { zh: '画笔',  ja: 'ブラシ', ko: '브러시', en: 'Brush' },
         'tool.eraser': { zh: '橡皮擦',  ja: '消しゴム', ko: '지우개', en: 'Eraser' },
         'tool.line': { zh: '直线',  ja: '直線', ko: '직선', en: 'Line' },
@@ -14947,7 +14977,20 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
 
       memoMode: false,
       paintTool: 'pen',
-      perspGuideDebug: true, // P0.5 静态验证（临时）：true 时在分镜画布显示透视尺演示，可 window.__perspGuideDebug(false) 关闭
+      perspGuideDebug: false, // P0.5 静态演示（调试用），控制台 window.__perspGuideDebug(true) 开启
+      perspGuide: {
+        active: false,          // 透视尺工具是否激活
+        visible: true,          // 辅助层显示
+        stage: 'captureLines',  // 'captureLines' | 'linesDone'
+        lines: [],              // 用户拉的透视线 [{a:{x,y}, b:{x,y}}] norm（画布）坐标
+        groups: [],             // 每组两条线的交点 [{lines:[i0,i1], vp:{x,y}|null}]
+        vps: [],                // 已确定的灭点（norm 坐标，至多 3 个使用前 3 组）
+        h: null,                // 垂心（norm）
+        circleRpx: 0,           // 90° 视场圆半径 = 焦距（layer px）
+        fov: null,              // {h,v,d}（度）
+        focalPx: 0, focalMm: 0, // 焦距
+        drag: null              // 拖拽中的透视线 {a,b}（norm）
+      },
       // ver999: paintShapeFill removed — 塗り lives in the per-tool brush store now (PAINT_BRUSH_SETTING_SPEC).
       paintBucketTolerance: null, // ver607 bucket fill options (lazy-loaded from localStorage)
       paintBucketGapClose: null,
@@ -47567,7 +47610,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       return { pen: t('tool.pen'), eraser: t('tool.eraser'), line: t('tool.line'), curve: t('tool.curve'),
         rect: t('tool.rect'), ellipse: t('tool.ellipse'), 'lasso-fill': t('tool.lassoFill'), bucket: t('tool.bucket'),
         'lasso-select': t('tool.lassoSelect'), 'lasso-stamp': t('tool.lassoStamp'), transform: t('tool.transform'),
-        perspective: t('tool.perspective'), camera: t('tool.camera') };
+        perspective: t('tool.perspective'), camera: t('tool.camera'), persp: t('tool.perspRuler') };
     }
     function paintToolLabel(tool) { return paintToolLabels()[tool] || String(tool || ''); }
     function customPanelWindowEl(slotIndex) {
@@ -51921,6 +51964,328 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       return state.perspGuideDebug;
     };
 
+    // ===== 透视步进尺 P0.5 交互：拉透视线 → 灭点 → 仅透视线出口 =====
+    // 所有数据均存 norm（画布/纸面）坐标，绘制锚定 .conte-paper，因此摄像机工具/关键帧
+    // 移动不会改变透视尺（用户已确认此语义）。
+    function perspGuidePointFromEvent(event) {
+      const p = getVideoPaintPointFromEventRaw(event);
+      return p ? { x: p.x, y: p.y } : null;
+    }
+
+    function perspGuideHasContent() {
+      if (state.perspGuideDebug) return true;
+      const g = state.perspGuide;
+      return Boolean(g && g.visible && (g.active || g.lines.length || g.vps.length || g.drag));
+    }
+
+    function perspGuideDeactivate() {
+      const g = state.perspGuide;
+      if (g && g.active) {
+        g.active = false;
+        g.drag = null;
+        updatePaintUI();
+        drawPaintStageOverlay();
+      }
+    }
+
+    function perspGuideReset() {
+      const g = state.perspGuide;
+      g.lines = [];
+      g.groups = [];
+      g.vps = [];
+      g.h = null;
+      g.circleRpx = 0;
+      g.fov = null;
+      g.focalPx = 0;
+      g.focalMm = 0;
+      g.drag = null;
+      g.stage = 'captureLines';
+      updatePaintUI();
+      drawPaintStageOverlay();
+    }
+
+    // 每组两条线求灭点；≥3 组时计算垂心/90° 圆/FOV/焦距（layer px 空间计算，norm 存储）
+    function perspGuideCompute() {
+      const g = state.perspGuide;
+      const groups = [];
+      const vps = [];
+      let lastParallel = false;
+      const toLayer = function(p) { return [conteNormToLayerX(p.x), conteNormToLayerY(p.y)]; };
+      for (let i = 0; i + 1 < g.lines.length; i += 2) {
+        const l1 = g.lines[i], l2 = g.lines[i + 1];
+        const p1 = toLayer(l1.a), p2 = toLayer(l1.b);
+        const q1 = toLayer(l2.a), q2 = toLayer(l2.b);
+        const d1 = [p2[0] - p1[0], p2[1] - p1[1]];
+        const d2 = [q2[0] - q1[0], q2[1] - q1[1]];
+        const vpLayer = PerspMath.lineIntersect(p1, d1, q1, d2);
+        const far = Math.hypot(CONTE_PAPER_WIDTH, CONTE_PAPER_HEIGHT) * 50;
+        let vp = null;
+        if (vpLayer && Math.abs(vpLayer[0]) < far && Math.abs(vpLayer[1]) < far) {
+          vp = { x: vpLayer[0] / CONTE_PAPER_WIDTH, y: vpLayer[1] / CONTE_PAPER_HEIGHT };
+        } else {
+          lastParallel = true;
+        }
+        groups.push({ lines: [i, i + 1], vp: vp });
+        if (vp) vps.push(vp);
+      }
+      g.groups = groups;
+      g.vps = vps.slice(0, 3);
+      g.lastParallel = lastParallel;
+      if (vps.length >= 3) {
+        const m = perspGuideModel();
+        if (m) {
+          g.h = { x: m.H[0] / CONTE_PAPER_WIDTH, y: m.H[1] / CONTE_PAPER_HEIGHT };
+          g.circleRpx = m.r;
+          g.fov = m.fov;
+          g.focalPx = m.f;
+          g.focalMm = m.fmm;
+        }
+      } else {
+        g.h = null;
+        g.circleRpx = 0;
+        g.fov = null;
+        g.focalPx = 0;
+        g.focalMm = 0;
+      }
+    }
+
+    // 由前三个灭点构建 layer 空间模型（与 perspDebugModel 同一套已验证数学）
+    function perspGuideModel() {
+      const g = state.perspGuide;
+      if (!g.vps || g.vps.length < 3) return null;
+      const vps = g.vps.slice(0, 3).map(function(v) {
+        return [conteNormToLayerX(v.x), conteNormToLayerY(v.y)];
+      });
+      const H = PerspMath.orthocenter(vps[0], vps[1], vps[2]);
+      const f = PerspMath.focalFromVps(H, vps);
+      const diag = Math.hypot(CONTE_PAPER_WIDTH, CONTE_PAPER_HEIGHT);
+      const p = [];
+      for (let i = 0; i < 3; i++) {
+        PerspMath.rightAnglePoints(H, vps, i).forEach(function(pt) { p.push(pt); });
+      }
+      return {
+        vps: vps,
+        H: H,
+        f: f,
+        r: f,
+        fov: {
+          h: 2 * Math.atan((CONTE_PAPER_WIDTH / 2) / f) * 180 / Math.PI,
+          v: 2 * Math.atan((CONTE_PAPER_HEIGHT / 2) / f) * 180 / Math.PI,
+          d: 2 * Math.atan((diag / 2) / f) * 180 / Math.PI
+        },
+        fmm: 36 * f / CONTE_PAPER_WIDTH,
+        p: p
+      };
+    }
+
+    function perspGuideSyncUI() {
+      const g = state.perspGuide;
+      const hint = document.getElementById('perspStageHint');
+      const vpR = document.getElementById('perspVpReadout');
+      const focalR = document.getElementById('perspFocalReadout');
+      const fovR = document.getElementById('perspFovReadout');
+      const doneBtn = document.getElementById('perspDoneBtn');
+      const resetBtn = document.getElementById('perspResetBtn');
+      const visibleBtn = document.getElementById('perspVisibleBtn');
+      if (hint) {
+        if (g.stage === 'linesDone') hint.textContent = t('persp.stage.linesDone');
+        else if (g.lastParallel) hint.textContent = t('persp.parallel');
+        else if (g.vps.length === 2) hint.textContent = t('persp.needThird');
+        else hint.textContent = t('persp.stage.captureLines');
+      }
+      if (vpR) vpR.textContent = String(g.vps.length);
+      if (focalR) focalR.textContent = g.focalPx > 0 ? g.focalPx.toFixed(1) + 'px' + (g.focalMm > 0 ? '(≈' + g.focalMm.toFixed(1) + 'mm)' : '') : '—';
+      if (fovR) fovR.textContent = g.fov ? g.fov.h.toFixed(1) + ' / ' + g.fov.v.toFixed(1) + ' / ' + g.fov.d.toFixed(1) + '°' : '—';
+      if (doneBtn) doneBtn.disabled = g.vps.length < 2;
+      if (resetBtn) resetBtn.disabled = !g.lines.length && g.vps.length === 0;
+      if (visibleBtn) visibleBtn.textContent = g.visible ? t('persp.visible.hide') : t('persp.visible.show');
+    }
+
+    function perspGuideMarker(ctx, dispScale, vp, label) {
+      const lx = conteNormToLayerX(vp.x), ly = conteNormToLayerY(vp.y);
+      const s = Math.max(2, 5 / dispScale);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 210, 63, 0.95)';
+      ctx.lineWidth = Math.max(0.6, 1.3 / dispScale);
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(lx - s, ly); ctx.lineTo(lx + s, ly);
+      ctx.moveTo(lx, ly - s); ctx.lineTo(lx, ly + s);
+      ctx.stroke();
+      drawPerspGuideLabel(ctx, dispScale, label, lx + s, ly - s);
+      ctx.restore();
+    }
+
+    function togglePerspGuideTool() {
+      const g = state.perspGuide;
+      if (g.active) {
+        g.active = false;
+        g.drag = null;
+      } else {
+        disarmPaintEditToolState();
+        state.paintEditTool = '';
+        state.paintEditToolWindowOpen = false;
+        state.paintEyedropper = false;
+        g.active = true;
+      }
+      updatePaintUI();
+      drawPaintStageOverlay();
+    }
+
+    function perspGuideFinishLines() {
+      const g = state.perspGuide;
+      if (g.vps.length >= 2) g.stage = 'linesDone'; // 仅透视线模式：保留数据，可随时继续补第 2、3 步
+      updatePaintUI();
+      drawPaintStageOverlay();
+    }
+
+    function togglePerspGuideVisible() {
+      const g = state.perspGuide;
+      g.visible = !g.visible;
+      updatePaintUI();
+      drawPaintStageOverlay();
+    }
+
+    function beginPerspGuidePointerDown(event) {
+      const g = state.perspGuide;
+      if (!g || !g.active || !state.videoEditMode || g.stage !== 'captureLines') return;
+      if (event.button != null && event.button !== 0) return;
+      const tgt = event.target;
+      if (!tgt || !tgt.closest || !tgt.closest('#conteVideoStage')) return;
+      if (tgt.closest('button, input, select, textarea, .camera-frame-overlay, .preview-bold-layer')) return;
+      if (state.paintRasterOp || state.paintPointerId != null) return;
+      const pt = perspGuidePointFromEvent(event);
+      if (!pt) return;
+      event.preventDefault();
+      event.stopPropagation();
+      g.drag = { a: pt, b: pt };
+      drawPaintStageOverlay();
+    }
+
+    function movePerspGuidePointer(event) {
+      const g = state.perspGuide;
+      if (!g || !g.drag) return;
+      const pt = perspGuidePointFromEvent(event);
+      if (!pt) return;
+      g.drag.b = pt;
+      drawPaintStageOverlay();
+    }
+
+    function endPerspGuidePointer(event) {
+      const g = state.perspGuide;
+      if (!g || !g.drag) return;
+      const pt = perspGuidePointFromEvent(event);
+      if (pt) g.drag.b = pt;
+      const a = g.drag.a, b = g.drag.b;
+      g.drag = null;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      if (Math.hypot(dx, dy) > 0.004) { // 过短的拖动忽略
+        g.lines.push({ a: a, b: b });
+        perspGuideCompute();
+      }
+      drawPaintStageOverlay();
+      perspGuideSyncUI();
+    }
+
+    function cancelPerspGuidePointer() {
+      const g = state.perspGuide;
+      if (!g || !g.drag) return;
+      g.drag = null;
+      drawPaintStageOverlay();
+    }
+
+    function drawPerspGuide(ctx, dispScale) {
+      const g = state.perspGuide;
+      if (!g || !g.visible) return;
+      const lw = function(px) { return Math.max(0.5, px / dispScale); };
+      ctx.save();
+      ctx.lineCap = 'round';
+      // 已落下的透视线（浅红）
+      ctx.strokeStyle = 'rgba(255, 90, 90, 0.45)';
+      ctx.lineWidth = lw(1.2);
+      ctx.setLineDash([]);
+      g.lines.forEach(function(line) {
+        ctx.beginPath();
+        ctx.moveTo(conteNormToLayerX(line.a.x), conteNormToLayerY(line.a.y));
+        ctx.lineTo(conteNormToLayerX(line.b.x), conteNormToLayerY(line.b.y));
+        ctx.stroke();
+      });
+      // 拖拽中的线（橙色虚线预览）
+      if (g.drag) {
+        ctx.strokeStyle = 'rgba(255, 170, 90, 0.95)';
+        ctx.lineWidth = lw(1.3);
+        ctx.setLineDash([lw(5), lw(4)]);
+        ctx.beginPath();
+        ctx.moveTo(conteNormToLayerX(g.drag.a.x), conteNormToLayerY(g.drag.a.y));
+        ctx.lineTo(conteNormToLayerX(g.drag.b.x), conteNormToLayerY(g.drag.b.y));
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // 灭点标记
+      g.vps.forEach(function(vp, i) {
+        perspGuideMarker(ctx, dispScale, vp, 'V' + (i + 1));
+      });
+      // 2 个灭点：地平线（黄色虚线，仅提示方向）
+      if (g.vps.length === 2 && !g.h) {
+        const a = [conteNormToLayerX(g.vps[0].x), conteNormToLayerY(g.vps[0].y)];
+        const b = [conteNormToLayerX(g.vps[1].x), conteNormToLayerY(g.vps[1].y)];
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const dl = Math.hypot(dx, dy) || 1;
+        ctx.strokeStyle = 'rgba(255, 210, 63, 0.45)';
+        ctx.lineWidth = lw(1);
+        ctx.setLineDash([lw(8), lw(6)]);
+        ctx.beginPath();
+        ctx.moveTo(a[0] - (dx / dl) * 1200, a[1] - (dy / dl) * 1200);
+        ctx.lineTo(b[0] + (dx / dl) * 1200, b[1] + (dy / dl) * 1200);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // 3 个灭点：三角形 / 过垂心平行线 / 90° 圆 / 直角顶点 P + HUD
+      const m = g.vps.length >= 3 ? perspGuideModel() : null;
+      if (m) {
+        ctx.strokeStyle = 'rgba(63, 163, 236, 0.95)';
+        ctx.lineWidth = lw(1.4);
+        ctx.beginPath();
+        ctx.moveTo(m.vps[0][0], m.vps[0][1]);
+        ctx.lineTo(m.vps[1][0], m.vps[1][1]);
+        ctx.lineTo(m.vps[2][0], m.vps[2][1]);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(63, 163, 236, 0.45)';
+        ctx.lineWidth = lw(1);
+        ctx.setLineDash([lw(6), lw(4)]);
+        for (let i = 0; i < 3; i++) {
+          const a = m.vps[(i + 1) % 3], b = m.vps[(i + 2) % 3];
+          const dx = b[0] - a[0], dy = b[1] - a[1];
+          const dl = Math.hypot(dx, dy) || 1;
+          ctx.beginPath();
+          ctx.moveTo(m.H[0] - (dx / dl) * 900, m.H[1] - (dy / dl) * 900);
+          ctx.lineTo(m.H[0] + (dx / dl) * 900, m.H[1] + (dy / dl) * 900);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255, 210, 63, 0.8)';
+        ctx.lineWidth = lw(1.5);
+        ctx.beginPath();
+        ctx.arc(m.H[0], m.H[1], m.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#ffd23f';
+        ctx.beginPath();
+        ctx.arc(m.H[0], m.H[1], lw(3.2), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0, 230, 255, 0.95)';
+        m.p.forEach(function(pt) {
+          ctx.beginPath();
+          ctx.arc(pt[0], pt[1], lw(3), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        drawPerspGuideLabel(ctx, dispScale, 'H', m.H[0] + lw(3), m.H[1] + lw(3));
+        const hud = 'f=' + m.f.toFixed(1) + 'px(≈' + m.fmm.toFixed(1) + 'mm)  FOV h/v/d=' + m.fov.h.toFixed(1) + '/' + m.fov.v.toFixed(1) + '/' + m.fov.d.toFixed(1) + '°';
+        drawPerspGuideLabel(ctx, dispScale, hud, 8, 12);
+      }
+      ctx.restore();
+    }
+
     function drawPaintStageOverlay() {
       const canvas = ensureVideoStageOverlayCanvas();
       if (!canvas) return;
@@ -51936,7 +52301,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const hasContent = (state.paintSelection && state.paintSelection.maskCanvas)
         || (state.paintLassoPreview && Array.isArray(state.paintLassoPreview.points) && state.paintLassoPreview.points.length)
         || state.paintTransformBox || state.paintTransformPreview || state.paintStampPreview
-        || state.perspGuideDebug; // P0.5：透视尺演示也算"有内容"
+        || state.perspGuideDebug || perspGuideHasContent(); // P0.5：透视尺演示/真实数据也算"有内容"
       if (!hasContent) { clearAll(); return; }
       // ver718/721: the PAPER (.conte-paper) is the layer→screen anchor (norm 0/1 = paper edges,
       // layer px = paper px); it carries the pan/zoom, so its gBCR already reflects both. (Anchored off
@@ -52001,6 +52366,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (box && paintTransformUiRefValid(box.drawingRef)) drawPaintTransformOverlay(ctx, box, mstyle);
       // P0.5 静态验证：透视步进尺演示（后续替换为真实 perspGuide 数据）
       if (state.perspGuideDebug) drawPerspGuideDebug(ctx, dispScale);
+      // P0.5 交互：透视尺真实数据（透视线/灭点/构造）
+      if (perspGuideHasContent()) drawPerspGuide(ctx, dispScale);
     }
 
     // ver755: was a byte-for-byte copy of paintCanvasInkBounds' scan (and threw on a tainted canvas instead of
@@ -57052,6 +57419,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     }
 
     function selectPaintEditTool(tool) {
+      perspGuideDeactivate(); // P0.5：切到其它编辑工具时退出透视尺
       clearGengaGizmoCursor(); // ver1075 (B6): unconditional — switching TO camera must also drop the FX gizmo's cursor
       if (state.project && state.project.kind === 'genga') {
         if (gengaSel && String(tool || '') !== String(state.paintEditTool || '')) {
@@ -58371,7 +58739,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (eyedropper) eyedropper.classList.toggle('active', Boolean(state.paintEyedropper));
       updatePaintUndoRedoButtonsOnly();
       const penBtn = document.getElementById('paintPenBtn'); // ver611: single pen button (color presets removed)
-      if (penBtn) penBtn.classList.toggle('active', state.paintTool === 'pen' && !state.paintEditTool && !state.paintEyedropper);
+      if (penBtn) penBtn.classList.toggle('active', state.paintTool === 'pen' && !state.paintEditTool && !state.paintEyedropper && !(state.perspGuide && state.perspGuide.active));
       const activeColor = activePaintColor();
       const customColor = normalizePaintBaseColor(state.paintCustomColor || activeColor);
       const popover = document.getElementById('paintColorPickerPopover');
@@ -58389,12 +58757,17 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       document.querySelectorAll('.paint-edit-tool-btn[data-paint-shape]').forEach(function(button) { // ver606 (+bucket ver607)
         button.classList.toggle('active', button.dataset.paintShape === state.paintTool);
       });
+      document.querySelectorAll('.paint-edit-tool-btn[data-paint-guide]').forEach(function(button) { // P0.5 透视尺
+        button.classList.toggle('active', Boolean(state.perspGuide && state.perspGuide.active));
+      });
       // ver611: inline per-tool options box (Tools window) — one section per draw tool
       // ver875: labels now flow through t() so the tool panel heading follows the UI language (ja/ko/en).
       const INLINE_TOOL_LABELS = paintToolLabels(); // ver1011: hoisted — the preset window names tools too
       // ver816: ONE settings surface. ver921: camera joined too.
       let inlineKey = '';
-      if (!state.paintEditTool) {
+      if (state.perspGuide.active) {
+        inlineKey = 'persp';
+      } else if (!state.paintEditTool) {
         inlineKey = paintShapeToolKind() || (state.paintTool === 'bucket' ? 'bucket' : (state.paintTool === 'eraser' ? 'eraser' : 'pen'));
       } else {
         inlineKey = state.paintEditTool;
@@ -58416,6 +58789,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       document.querySelectorAll('.paint-inline-section[data-paint-inline]').forEach(function(section) {
         section.hidden = String(section.dataset.paintInline || '') !== inlineSectionKey;
       });
+      if (typeof perspGuideSyncUI === 'function') perspGuideSyncUI(); // P0.5：透视尺面板读数/按钮状态
       document.querySelectorAll('[data-paint-selection-mode]').forEach(function(button) {
         button.classList.toggle('active', String(button.dataset.paintSelectionMode || '') === state.paintSelectionMode);
       });
@@ -58484,6 +58858,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     // public surface, so call sites won't churn again.)
     const PAINT_DRAW_TOOL_IDS = ['pen', 'eraser', 'line', 'curve', 'rect', 'ellipse', 'lasso-fill', 'bucket'];
     function setActivePaintTool(id) {
+      perspGuideDeactivate(); // P0.5：切到其它绘制工具时退出透视尺
       const next = String(id || '');
       if (PAINT_DRAW_TOOL_IDS.indexOf(next) >= 0) {
         disarmPaintEditToolForDrawTool(); // armed edit tool / lingering box (incl. the genga floating selection) tears down FIRST
@@ -59727,6 +60102,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         });
       }
       document.getElementById('paintEyedropperBtn').addEventListener('click', function() {
+        perspGuideDeactivate(); // P0.5：吸管激活时退出透视尺
         state.paintEyedropper = !state.paintEyedropper;
         if (state.paintEyedropper) {
           disarmPaintEditToolState(); // ver681: entering the eyedropper leaves the edit tool → tear down its box/selection
@@ -59752,6 +60128,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           const kind = String(button.dataset.paintShape || '');
           selectPaintShapeTool(state.paintTool === kind ? '' : kind);
         });
+      });
+      // P0.5 透视尺工具按钮
+      document.querySelectorAll('.paint-edit-tool-btn[data-paint-guide]').forEach(function(button) {
+        button.addEventListener('click', function() { togglePerspGuideTool(); });
       });
       // ver613: sheet-tool style scrub-number fields — drag horizontally to scrub, plain click to type.
       // ver964 P5⑤: the pointer half now rides the ver847 fxScrub kernel as its 5th host (after LE/genga/
@@ -59841,6 +60221,13 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (paintCameraClearBtn) paintCameraClearBtn.addEventListener('click', function() { const a = cameraFxAdapter(); if (a) a.clearAll(); setTimeout(cameraFxWindowSync, 0); });
       const paintCameraResetBtn = document.getElementById('paintCameraResetBtn'); // ver1128
       if (paintCameraResetBtn) paintCameraResetBtn.addEventListener('click', function() { cameraFxResetPosition(); });
+      // P0.5 透视尺：面板按钮
+      const perspDoneBtn = document.getElementById('perspDoneBtn');
+      if (perspDoneBtn) perspDoneBtn.addEventListener('click', perspGuideFinishLines);
+      const perspResetBtn = document.getElementById('perspResetBtn');
+      if (perspResetBtn) perspResetBtn.addEventListener('click', perspGuideReset);
+      const perspVisibleBtn = document.getElementById('perspVisibleBtn');
+      if (perspVisibleBtn) perspVisibleBtn.addEventListener('click', togglePerspGuideVisible);
       document.querySelectorAll('.one-px-btn[data-one-px-x][data-one-px-y]').forEach(function(button) {
         button.addEventListener('click', function() {
           applyOnePxMove(Number(button.dataset.onePxX) || 0, Number(button.dataset.onePxY) || 0);
@@ -59856,6 +60243,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       document.addEventListener('pointerdown', handlePaintSpacePanPointerDown);
       document.addEventListener('pointerdown', beginPaintTransformFromViewport);
       document.addEventListener('pointerdown', beginPaintDrawFromViewport);
+      // P0.5 透视尺：capture 阶段接管 #conteVideoStage 上的拖拽（拉透视线）
+      document.addEventListener('pointerdown', beginPerspGuidePointerDown, true);
+      document.addEventListener('pointermove', movePerspGuidePointer, true);
+      document.addEventListener('pointerup', endPerspGuidePointer, true);
+      document.addEventListener('pointercancel', cancelPerspGuidePointer, true);
       // ver1240: capture phase, so the eraser end is already the active tool by the time the surface handlers
       // above build their stroke. Release is captured too — an element's own pointerup is not guaranteed.
       const previewMount = document.getElementById('paintBrushPreviewMount');
