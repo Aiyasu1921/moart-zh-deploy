@@ -14947,6 +14947,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
 
       memoMode: false,
       paintTool: 'pen',
+      perspGuideDebug: true, // P0.5 静态验证（临时）：true 时在分镜画布显示透视尺演示，可 window.__perspGuideDebug(false) 关闭
       // ver999: paintShapeFill removed — 塗り lives in the per-tool brush store now (PAINT_BRUSH_SETTING_SPEC).
       paintBucketTolerance: null, // ver607 bucket fill options (lazy-loaded from localStorage)
       paintBucketGapClose: null,
@@ -51714,6 +51715,212 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       }
       return canvas;
     }
+    // ===== 透视步进尺 P0.5 静态渲染验证（临时调试代码） =====
+    // 数学内核：与 persp-math-test/verify_persp_ruler.py 一致，全部在 layer px（纸面）空间计算。
+    const PerspMath = {
+      lineIntersect: function(p1, d1, p2, d2) {
+        const den = d1[0] * d2[1] - d1[1] * d2[0];
+        if (Math.abs(den) < 1e-9) return null;
+        const t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den;
+        return [p1[0] + t * d1[0], p1[1] + t * d1[1]];
+      },
+      footOfPerp: function(p, a, b) {
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy);
+        return [a[0] + t * dx, a[1] + t * dy];
+      },
+      orthocenter: function(A, B, C) {
+        const dBC = [C[0] - B[0], C[1] - B[1]];
+        const dAC = [C[0] - A[0], C[1] - A[1]];
+        return PerspMath.lineIntersect(A, [dBC[1], -dBC[0]], B, [dAC[1], -dAC[0]]);
+      },
+      circleLineIntersections: function(center, radius, p, d) {
+        const dl = Math.hypot(d[0], d[1]);
+        if (!(dl > 0)) return [];
+        const dx = d[0] / dl, dy = d[1] / dl;
+        const wx = p[0] - center[0], wy = p[1] - center[1];
+        const a = dx * dx + dy * dy;
+        const b = wx * dx + wy * dy;
+        const c = wx * wx + wy * wy - radius * radius;
+        let disc = b * b - a * c;
+        if (disc < -1e-9) return [];
+        if (disc < 0) disc = 0;
+        const s = Math.sqrt(disc);
+        const t1 = (-b - s) / a, t2 = (-b + s) / a;
+        const pts = [[p[0] + t1 * dx, p[1] + t1 * dy]];
+        if (Math.abs(t2 - t1) > 1e-9) pts.push([p[0] + t2 * dx, p[1] + t2 * dy]);
+        return pts;
+      },
+      rightAnglePoints: function(H, tri, i) {
+        // Pᵢ：“以第 i 条边的高为直径的圆”∩“过 H 且平行于该边的直线”（已数值验证共圆于 H）
+        const v = tri[i], a = tri[(i + 1) % 3], b = tri[(i + 2) % 3];
+        const foot = PerspMath.footOfPerp(v, a, b);
+        const cx = (v[0] + foot[0]) / 2, cy = (v[1] + foot[1]) / 2;
+        const r = Math.hypot(v[0] - foot[0], v[1] - foot[1]) / 2;
+        return PerspMath.circleLineIntersections([cx, cy], r, H, [b[0] - a[0], b[1] - a[1]]);
+      },
+      focalFromVps: function(H, vps) {
+        // 已验证：H→Vᵢ 两两内积 = −f²；取平均反解焦距（px）
+        let sum = 0, n = 0;
+        for (let i = 0; i < vps.length; i++) {
+          for (let j = i + 1; j < vps.length; j++) {
+            sum += (vps[i][0] - H[0]) * (vps[j][0] - H[0]) + (vps[i][1] - H[1]) * (vps[j][1] - H[1]);
+            n++;
+          }
+        }
+        return Math.sqrt(Math.max(0, -sum / n));
+      }
+    };
+
+    // 演示数据：真实相机生成的灭点三角形（V1 左 / V2 上 / V3 右，norm 坐标），
+    // 数值见 persp-math-test/demo_geometry.py —— 垂心在纸面中心、f = 300px。
+    const PERSP_DEBUG_VPS_NORM = [[-0.16389, 0.99949], [0.41696, -0.87052], [1.06211, 0.85041]];
+    const PERSP_DEBUG_BOXES = [   // 演示步进矩形 {x,y,w,h} layer px，脚底 = y+h
+      { x: 236, y: 238, w: 88, h: 148 },
+      { x: 252, y: 262, w: 62, h: 104 },
+      { x: 262, y: 282, w: 44, h: 72 }
+    ];
+    const PERSP_DEBUG_RAYS = [    // 每组透视线：从灭点出发经过纸面内的锚点
+      { vp: 0, anchors: [[0.36, 0.76], [0.21, 0.62], [0.10, 0.86]] },
+      { vp: 1, anchors: [[0.44, 0.38], [0.55, 0.55], [0.50, 0.22]] },
+      { vp: 2, anchors: [[0.68, 0.74], [0.82, 0.62], [0.93, 0.82]] }
+    ];
+
+    function perspDebugModel() {
+      const vps = PERSP_DEBUG_VPS_NORM.map(function(v) {
+        return [conteNormToLayerX(v[0]), conteNormToLayerY(v[1])];
+      });
+      const H = PerspMath.orthocenter(vps[0], vps[1], vps[2]);
+      const f = PerspMath.focalFromVps(H, vps);
+      const diag = Math.hypot(CONTE_PAPER_WIDTH, CONTE_PAPER_HEIGHT);
+      const p = [];
+      for (let i = 0; i < 3; i++) {
+        PerspMath.rightAnglePoints(H, vps, i).forEach(function(pt) { p.push(pt); });
+      }
+      return {
+        vps: vps,
+        H: H,
+        f: f,
+        r: f,                        // 已验证：构造圆半径 = 焦距
+        fov: {
+          h: 2 * Math.atan((CONTE_PAPER_WIDTH / 2) / f) * 180 / Math.PI,
+          v: 2 * Math.atan((CONTE_PAPER_HEIGHT / 2) / f) * 180 / Math.PI,
+          d: 2 * Math.atan((diag / 2) / f) * 180 / Math.PI
+        },
+        fmm: 36 * f / CONTE_PAPER_WIDTH,
+        p: p
+      };
+    }
+
+    function drawPerspGuideLabel(ctx, dispScale, text, x, y) {
+      const fs = Math.max(8, 11 / dispScale);
+      ctx.save();
+      ctx.font = fs + 'px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = Math.max(1, 3 / dispScale);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(20, 20, 20, 0.85)';
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function drawPerspGuideDebug(ctx, dispScale) {
+      const m = perspDebugModel();
+      const lw = function(px) { return Math.max(0.5, px / dispScale); }; // 常量屏幕宽度
+      ctx.save();
+      ctx.lineCap = 'round';
+      // 透视线（浅红半透明）
+      ctx.strokeStyle = 'rgba(255, 90, 90, 0.35)';
+      ctx.lineWidth = lw(1.1);
+      ctx.setLineDash([]);
+      PERSP_DEBUG_RAYS.forEach(function(ray) {
+        const vp = m.vps[ray.vp];
+        ray.anchors.forEach(function(a) {
+          const ax = conteNormToLayerX(a[0]), ay = conteNormToLayerY(a[1]);
+          ctx.beginPath();
+          ctx.moveTo(vp[0], vp[1]);
+          ctx.lineTo(ax, ay);
+          ctx.stroke();
+        });
+      });
+      // 灭点三角形
+      ctx.strokeStyle = 'rgba(63, 163, 236, 0.95)';
+      ctx.lineWidth = lw(1.4);
+      ctx.beginPath();
+      ctx.moveTo(m.vps[0][0], m.vps[0][1]);
+      ctx.lineTo(m.vps[1][0], m.vps[1][1]);
+      ctx.lineTo(m.vps[2][0], m.vps[2][1]);
+      ctx.closePath();
+      ctx.stroke();
+      // 过垂心的三边平行线（虚线）
+      ctx.strokeStyle = 'rgba(63, 163, 236, 0.45)';
+      ctx.lineWidth = lw(1.0);
+      ctx.setLineDash([lw(6), lw(4)]);
+      for (let i = 0; i < 3; i++) {
+        const a = m.vps[(i + 1) % 3], b = m.vps[(i + 2) % 3];
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const dl = Math.hypot(dx, dy) || 1;
+        const ex = 900;
+        ctx.beginPath();
+        ctx.moveTo(m.H[0] - (dx / dl) * ex, m.H[1] - (dy / dl) * ex);
+        ctx.lineTo(m.H[0] + (dx / dl) * ex, m.H[1] + (dy / dl) * ex);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // 90° 视场圆（半径 = 焦距 f）
+      ctx.strokeStyle = 'rgba(255, 210, 63, 0.8)';
+      ctx.lineWidth = lw(1.5);
+      ctx.beginPath();
+      ctx.arc(m.H[0], m.H[1], m.r, 0, Math.PI * 2);
+      ctx.stroke();
+      // 垂心 H
+      ctx.fillStyle = '#ffd23f';
+      ctx.beginPath();
+      ctx.arc(m.H[0], m.H[1], lw(3.2), 0, Math.PI * 2);
+      ctx.fill();
+      // 三边直角顶点 P（应全部落在以 H 为圆心的圆上）——交叉验证构造
+      ctx.fillStyle = 'rgba(0, 230, 255, 0.95)';
+      m.p.forEach(function(pt) {
+        ctx.beginPath();
+        ctx.arc(pt[0], pt[1], lw(3), 0, Math.PI * 2);
+        ctx.fill();
+      });
+      // 演示步进矩形 + 序号 + 脚底线
+      PERSP_DEBUG_BOXES.forEach(function(b, idx) {
+        ctx.fillStyle = 'rgba(49, 171, 86, 0.14)';
+        ctx.strokeStyle = 'rgba(49, 171, 86, 0.95)';
+        ctx.lineWidth = lw(1.5);
+        ctx.setLineDash([]);
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+        ctx.beginPath();
+        ctx.moveTo(b.x - lw(3), b.y + b.h);
+        ctx.lineTo(b.x + b.w + lw(3), b.y + b.h);
+        ctx.stroke();
+        drawPerspGuideLabel(ctx, dispScale, String(idx + 1), b.x + b.w / 2, b.y - lw(4));
+      });
+      // 标签：V1/V2/V3/H
+      ['V1', 'V2', 'V3'].forEach(function(name, i) {
+        drawPerspGuideLabel(ctx, dispScale, name, m.vps[i][0] + lw(3), m.vps[i][1] + lw(3));
+      });
+      drawPerspGuideLabel(ctx, dispScale, 'H', m.H[0] + lw(3), m.H[1] + lw(3));
+      // HUD 读数：f / 35mm 等效 / 三向 FOV（用于与 demo_geometry.py 人工核对）
+      const hud = 'P0.5 静态验证  f=' + m.f.toFixed(1) + 'px(≈' + m.fmm.toFixed(1) + 'mm)  '
+        + 'FOV h/v/d=' + m.fov.h.toFixed(1) + '/' + m.fov.v.toFixed(1) + '/' + m.fov.d.toFixed(1) + '°  r=f=' + m.r.toFixed(1) + 'px';
+      drawPerspGuideLabel(ctx, dispScale, hud, 8, 12);
+      ctx.restore();
+    }
+
+    // 控制台开关：window.__perspGuideDebug(false) 隐藏演示，不传参或 true 显示
+    window.__perspGuideDebug = function(on) {
+      state.perspGuideDebug = on !== false;
+      drawPaintStageOverlay();
+      return state.perspGuideDebug;
+    };
+
     function drawPaintStageOverlay() {
       const canvas = ensureVideoStageOverlayCanvas();
       if (!canvas) return;
@@ -51728,7 +51935,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // idle fast-path: nothing selected/previewing → keep it clear (so zoom/pan redraws are ~free)
       const hasContent = (state.paintSelection && state.paintSelection.maskCanvas)
         || (state.paintLassoPreview && Array.isArray(state.paintLassoPreview.points) && state.paintLassoPreview.points.length)
-        || state.paintTransformBox || state.paintTransformPreview || state.paintStampPreview;
+        || state.paintTransformBox || state.paintTransformPreview || state.paintStampPreview
+        || state.perspGuideDebug; // P0.5：透视尺演示也算"有内容"
       if (!hasContent) { clearAll(); return; }
       // ver718/721: the PAPER (.conte-paper) is the layer→screen anchor (norm 0/1 = paper edges,
       // layer px = paper px); it carries the pan/zoom, so its gBCR already reflects both. (Anchored off
@@ -51791,6 +51999,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (transformPreview) drawPaintTransformPreviewOverlay(ctx, transformPreview, stageCrisp);
       const box = state.paintTransformBox;
       if (box && paintTransformUiRefValid(box.drawingRef)) drawPaintTransformOverlay(ctx, box, mstyle);
+      // P0.5 静态验证：透视步进尺演示（后续替换为真实 perspGuide 数据）
+      if (state.perspGuideDebug) drawPerspGuideDebug(ctx, dispScale);
     }
 
     // ver755: was a byte-for-byte copy of paintCanvasInkBounds' scan (and threw on a tainted canvas instead of
