@@ -1,7 +1,14 @@
-# MoArt ver1248 · 简体中文版
+# MoArt-aiyasu · 简体中文版
 
-这是 [MoArt](https://moaang.github.io/moart/) ver1248 的简体中文汉化版，
-单文件网页应用（原画 + 分镜制作工具），可离线保存到本地直接用，也可部署到 GitHub Pages。
+这是 [MoArt](https://moaang.github.io/moart/) ver1248 汉化版的个人分支 **MoArt-aiyasu**，
+版本号从 **ver1** 重新计。单文件网页应用（原画 + 分镜制作工具），
+可离线保存到本地直接用，也可部署到 GitHub Pages。
+本分支的开发主线是「透视步进尺」：基于三点透视的灭点构造，为二维动画的纵深/斜向走路提供辅助矩形（详见仓库根目录《透视步进尺-实现计划书.md》）。
+
+## 开发分支
+
+- `main`：上游 ver1248 基线（汉化 + 绑定修复）；
+- `moart-aiyasu`：当前开发分支（更名 MoArt-aiyasu、版本重置 ver1，透视步进尺功能均在此分支进行）。
 
 ## 本地使用
 
@@ -41,8 +48,8 @@
 
 ## 说明
 
-- 文件来源：https://moaang.github.io/moart/（ver1248），仅做简体中文本地化，
-  未修改任何功能逻辑。
+- 文件来源：https://moaang.github.io/moart/（ver1248），在简体中文本地化基础上
+  进行了更名（MoArt-aiyasu）与版本重置（ver1），并持续新增透视辅助功能。
 - 语言：首次打开默认为简体中文，也可在启动画面右上角切换到 日本語 / 한국어 / English。
 - 统计：页面保留了原作者内置的 GoatCounter 匿名统计（原作者有意统计转载副本）。
   若不希望统计，删除 `index.html` 中两处 `goatcounter` 相关 `<script>` 即可。
