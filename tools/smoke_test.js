@@ -180,6 +180,28 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
   });
   console.log('WALK', JSON.stringify(walkState));
 
+  // P2：在画布上拖方向线 → 斜向路径；清除 → 回到垂直默认；物距 u 常显
+  await page.mouse.move(paper2.x + paper2.w * 0.60, paper2.y + paper2.h * 0.20);
+  await page.mouse.down();
+  await page.mouse.move(paper2.x + paper2.w * 0.80, paper2.y + paper2.h * 0.30, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const pathState = await page.evaluate(function() {
+    return {
+      readout: (document.getElementById('perspWalkReadout') || {}).textContent,
+      clearHidden: (document.getElementById('perspClearPathBtn') || {}).hidden,
+      uRowHidden: (document.getElementById('perspURow') || {}).hidden,
+      u: (document.getElementById('perspUReadout') || {}).textContent
+    };
+  });
+  console.log('DIRECTION PATH', JSON.stringify(pathState));
+  await page.evaluate(function() { const b = document.getElementById('perspClearPathBtn'); if (b) b.click(); });
+  await page.waitForTimeout(300);
+  const afterClear = await page.evaluate(function() {
+    return { readout: (document.getElementById('perspWalkReadout') || {}).textContent, clearHidden: (document.getElementById('perspClearPathBtn') || {}).hidden };
+  });
+  console.log('AFTER CLEAR PATH', JSON.stringify(afterClear));
+
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });
   await page.waitForTimeout(600);

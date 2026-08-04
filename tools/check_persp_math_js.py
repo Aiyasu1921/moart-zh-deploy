@@ -152,14 +152,39 @@ console.log('walk steps', g7.walk.steps.length, 'max hErr(px)', maxH.toExponenti
 console.log('walk toward sizes grow', g7.walk.steps.length >= 2 && g7.walk.steps[0].h < g7.walk.steps[g7.walk.steps.length - 1].h);
 const H = g7.h;
 const f0 = { x: g7.character.box.x + g7.character.box.w / 2, y: g7.character.box.y + g7.character.box.h };
-let colErr = 0;
+// 默认方向 = 画布垂直：脚底 x 固定，y 相对 H.y 按 u0/u 缩放
+let vertErr = 0;
 g7.walk.steps.forEach(function(s) {
   const f = { x: s.x + s.w / 2, y: s.y + s.h };
-  const ax = f.x - H.x, ay = f.y - H.y;
-  const bx = f0.x - H.x, by = f0.y - H.y;
-  colErr = Math.max(colErr, Math.abs(ax * by - ay * bx) / Math.hypot(bx, by));
+  const u = u0 - s.idx * 60;
+  vertErr = Math.max(vertErr, Math.abs(f.x - f0.x));
+  vertErr = Math.max(vertErr, Math.abs(f.y - (H.y + (f0.y - H.y) * (u0 / u))));
 });
-console.log('walk feet collinear with H maxErr', colErr.toExponential(3));
+console.log('walk vertical default maxErr', vertErr.toExponential(3));
+
+// ---- G: P2 方向线模式：步框位置在路径线上；深度由径向距离 |F−H| 反推 ----
+g7.walk.path = { a: { x: f0.x, y: f0.y }, b: { x: f0.x + 0.3, y: f0.y - 0.25 } };
+g7.walk.stepCount = 4;
+perspGuideWalk();
+let pathErr = 0;
+g7.walk.steps.forEach(function(s) {
+  const f = { x: s.x + s.w / 2, y: s.y + s.h };
+  const t = s.idx / g7.walk.steps.length;
+  const px = g7.walk.path.a.x + (g7.walk.path.b.x - g7.walk.path.a.x) * t;
+  const py = g7.walk.path.a.y + (g7.walk.path.b.y - g7.walk.path.a.y) * t;
+  pathErr = Math.max(pathErr, Math.abs(f.x - px), Math.abs(f.y - py));
+});
+console.log('walk path on-line maxErr', pathErr.toExponential(3));
+const r0 = Math.hypot(f0.x - H.x, f0.y - H.y);
+let pathHErr = 0;
+g7.walk.steps.forEach(function(s) {
+  const f = { x: s.x + s.w / 2, y: s.y + s.h };
+  const rk = Math.hypot(f.x - H.x, f.y - H.y);
+  const u = u0 * rk / r0;
+  const hPx = (270 / (g7.fov.v * Math.PI / 180)) * Math.atan(160 / u);
+  pathHErr = Math.max(pathHErr, Math.abs(s.h * 396 - hPx));
+});
+console.log('walk path sizeErr(px)', pathHErr.toExponential(3));
 """
 
 
