@@ -155,6 +155,27 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
   }));
   console.log('CALIB RESULT', JSON.stringify(calibResult));
 
+  // P1.5：纵深步进——设步数 3，点“生成步进矩形”
+  await page.evaluate(function() {
+    const el = document.getElementById('perspStepCountInput');
+    if (el) { el.value = '3'; el.dispatchEvent(new Event('change')); }
+  });
+  await page.evaluate(function() { const b = document.getElementById('perspWalkGenBtn'); if (b) b.click(); });
+  await page.waitForTimeout(400);
+  const walkState = await page.evaluate(function() {
+    const ov = document.querySelector('.video-paint-stage-overlay');
+    let nonBlank = false;
+    if (ov) { const d = ov.getContext('2d').getImageData(0, 0, ov.width, ov.height).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; nonBlank = s > 0; }
+    return {
+      hint: (document.getElementById('perspStageHint') || {}).textContent,
+      readout: (document.getElementById('perspWalkReadout') || {}).textContent,
+      walkRowHidden: (document.getElementById('perspWalkRow') || {}).hidden,
+      dirBtn: (document.getElementById('perspDirBtn') || {}).textContent,
+      overlayNonBlank: nonBlank
+    };
+  });
+  console.log('WALK', JSON.stringify(walkState));
+
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });
   await page.waitForTimeout(600);

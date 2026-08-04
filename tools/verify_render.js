@@ -133,6 +133,14 @@ const m5 = drawInto(document.getElementById('c1'), 1.4, 0, 0, drawPerspGuide);
 const mid = { x: (state.perspGuide.vps[0].x + state.perspGuide.vps[1].x) / 2, y: (state.perspGuide.vps[0].y + state.perspGuide.vps[1].y) / 2 };
 p = toCanvas(m5, mid.x * ${PAPER_W}, mid.y * ${PAPER_H});
 window.__checks.push(['B.horizon@2vp', near(document.getElementById('c1'), p.x, p.y, function(r,g,b){ return r>200 && g>160 && b<200; }, 8), 'horizon']);
+// 完成后：透视线端点处不应再显示白色把手
+state.perspGuide.lines = [
+  { a: { x: 0.20, y: 0.30 }, b: { x: 0.45, y: 0.25 } },
+  { a: { x: 0.15, y: 0.40 }, b: { x: 0.40, y: 0.33 } }
+];
+const m6 = drawInto(document.getElementById('c1'), 1.4, 0, 0, drawPerspGuide);
+p = toCanvas(m6, 0.20 * ${PAPER_W}, 0.30 * ${PAPER_H});
+window.__checks.push(['B.noHandle@done', near(document.getElementById('c1'), p.x, p.y, function(r,g,b){ return r>250 && g>250 && b>250; }, 6), 'notwhite']);
 </script></body></html>`;
 
   const tmp = path.join(os.tmpdir(), 'persp_check_' + Date.now() + '.html');
@@ -154,7 +162,8 @@ window.__checks.push(['B.horizon@2vp', near(document.getElementById('c1'), p.x, 
         paper: (v) => v && v.r > 230 && v.g > 230 && v.b > 220,
         green: (v) => v && v.g > v.r + 5 && v.g > v.b + 5,
         cyan: (v) => v && v.b > 200 && v.g > 170 && v.r < 160,
-        horizon: (v) => v && v.r > 200 && v.g > 160 && v.b < 200 }[kind] || (() => false);
+        horizon: (v) => v && v.r > 200 && v.g > 160 && v.b < 200,
+        notwhite: (v) => v === null || !(v.r > 230 && v.g > 230 && v.b > 230) }[kind] || (() => false);
       const pass = pred(val);
       if (!pass) ok = false;
       console.log((pass ? 'PASS' : 'FAIL') + '  ' + name + '  ' + JSON.stringify(val));

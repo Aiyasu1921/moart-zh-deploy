@@ -28,7 +28,8 @@ const state = {
     active: true, visible: true, stage: 'captureLines',
     lines: [], groups: [], vps: [], h: null, circleRpx: 0,
     fov: null, focalPx: 0, focalMm: 0, drag: null, lastParallel: false,
-    character: { box: null, heightCm: 160, shoulderCm: 0, uCm: 0 }
+    character: { box: null, heightCm: 160, shoulderCm: 0, uCm: 0 },
+    walk: { stepCm: 60, stepCount: 5, toward: true, steps: [] }
   }
 };
 """
@@ -130,6 +131,35 @@ const expectU = 160 / Math.tan(ratioPx * (g6.fov.v * Math.PI / 180));
 console.log('calib shoulderCm', g6.character.shoulderCm.toFixed(3), 'expect', expectShoulder.toFixed(3));
 console.log('calib uCm', g6.character.uCm.toFixed(3), 'expect', expectU.toFixed(3));
 console.log('calib match', Math.abs(g6.character.shoulderCm - expectShoulder) < 1e-9 && Math.abs(g6.character.uCm - expectU) < 1e-6);
+
+// ---- F: P1.5 纵深步进：尺寸与原型 atan 公式 1:1；脚底沿 H 射线（共线）----
+const g7 = guideState();
+g7.lines = g7.lines.slice(0, 4);
+g7.vps = []; g7.h = null; g7.circleRpx = 0; g7.fov = null; g7.focalPx = 0; g7.focalMm = 0;
+perspGuideCompute();
+g7.character = { box: { x: 0.30, y: 0.35, w: 0.12, h: 0.30 }, heightCm: 160, shoulderCm: 64, uCm: 589.867 };
+g7.walk = { stepCm: 60, stepCount: 5, toward: true, steps: [] };
+perspGuideWalk();
+const u0 = g7.character.uCm;
+const fovV = g7.fov.v * Math.PI / 180;
+let maxH = 0;
+g7.walk.steps.forEach(function(s) {
+  const u = u0 - s.idx * 60;
+  const hPx = (270 / fovV) * Math.atan(160 / u);
+  maxH = Math.max(maxH, Math.abs(s.h * 396 - hPx));
+});
+console.log('walk steps', g7.walk.steps.length, 'max hErr(px)', maxH.toExponential(3));
+console.log('walk toward sizes grow', g7.walk.steps.length >= 2 && g7.walk.steps[0].h < g7.walk.steps[g7.walk.steps.length - 1].h);
+const H = g7.h;
+const f0 = { x: g7.character.box.x + g7.character.box.w / 2, y: g7.character.box.y + g7.character.box.h };
+let colErr = 0;
+g7.walk.steps.forEach(function(s) {
+  const f = { x: s.x + s.w / 2, y: s.y + s.h };
+  const ax = f.x - H.x, ay = f.y - H.y;
+  const bx = f0.x - H.x, by = f0.y - H.y;
+  colErr = Math.max(colErr, Math.abs(ax * by - ay * bx) / Math.hypot(bx, by));
+});
+console.log('walk feet collinear with H maxErr', colErr.toExponential(3));
 """
 
 
