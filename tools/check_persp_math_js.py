@@ -43,7 +43,7 @@ m.p.forEach(function(pt) {
 console.log('P max |dist-r|', maxErr.toExponential(3));
 console.log('vps', m.vps.map(function(v){return [v[0].toFixed(2), v[1].toFixed(2)];}).join(' | '));
 
-// ---- B: 交互逻辑（模拟 3 组透视线）----
+// ---- B: 交互逻辑（模拟 3 组透视线：不吸附，垂心圆）----
 const guideState = function() { return state.perspGuide; };
 const VPS_LAYER = [[-91.94, 395.80], [233.91, -344.73], [595.84, 336.76]];
 const ANCHORS_LAYER = [
@@ -61,17 +61,30 @@ VPS_LAYER.forEach(function(vp, gi) {
   });
 });
 perspGuideCompute();
-const g2 = guideState();
-console.log('guide vps', g2.vps.map(function(v){return [v.x.toFixed(4), v.y.toFixed(4)];}).join(' | '));
-console.log('guide f', g2.focalPx.toFixed(3), 'fmm', g2.focalMm.toFixed(3), 'fov', g2.fov ? g2.fov.h.toFixed(3) + '/' + g2.fov.v.toFixed(3) + '/' + g2.fov.d.toFixed(3) : 'null');
+const g3 = guideState();
+console.log('3-group vps', g3.vps.map(function(v){return [v.x.toFixed(4), v.y.toFixed(4)];}).join(' | '));
+console.log('3-group f', g3.focalPx.toFixed(3), 'fmm', g3.focalMm.toFixed(3), 'fov', g3.fov ? g3.fov.h.toFixed(3) + '/' + g3.fov.v.toFixed(3) + '/' + g3.fov.d.toFixed(3) : 'null');
 let maxVpErr = 0;
-g2.vps.forEach(function(v, i) {
+g3.vps.forEach(function(v, i) {
   maxVpErr = Math.max(maxVpErr,
     Math.abs(v.x * 561 - VPS_LAYER[i][0]),
     Math.abs(v.y * 396 - VPS_LAYER[i][1]));
 });
-console.log('guide maxVpErr(px)', maxVpErr.toExponential(3));
-console.log('guide focalErr(px)', Math.abs(g2.focalPx - 300).toExponential(3));
+console.log('3-group maxVpErr(px)', maxVpErr.toExponential(3));
+console.log('3-group focalErr(px)', Math.abs(g3.focalPx - 300).toExponential(3));
+
+// ---- C: 两点透视（2 组线）：第二灭点吸附到视平线，f = |V1V2|/2 ----
+const g4 = guideState();
+g4.lines = g4.lines.slice(0, 4);
+g4.vps = []; g4.h = null; g4.circleRpx = 0; g4.fov = null; g4.focalPx = 0; g4.focalMm = 0;
+perspGuideCompute();
+console.log('2-group vps', g4.vps.map(function(v){return [v.x.toFixed(4), v.y.toFixed(4)];}).join(' | '));
+console.log('2-group snapped(y equal)', Math.abs(g4.vps[1].y - g4.vps[0].y) < 1e-12);
+const v1 = [g4.vps[0].x * 561, g4.vps[0].y * 396];
+const v2 = [g4.vps[1].x * 561, g4.vps[1].y * 396];
+const expectF = Math.hypot(v2[0] - v1[0], v2[1] - v1[1]) / 2;
+console.log('2-group focal=|V1V2|/2', Math.abs(g4.focalPx - expectF).toExponential(3));
+console.log('2-group f', g4.focalPx.toFixed(3), 'fov h/v/d', g4.fov.h.toFixed(2) + '/' + g4.fov.v.toFixed(2) + '/' + g4.fov.d.toFixed(2));
 """
 
 

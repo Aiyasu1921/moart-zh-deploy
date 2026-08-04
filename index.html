@@ -52005,7 +52005,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       drawPaintStageOverlay();
     }
 
-    // 每组两条线求灭点；≥3 组时计算垂心/90° 圆/FOV/焦距（layer px 空间计算，norm 存储）
+    // 每组两条线求灭点；第二组灭点吸附到第一组的水平视平线上（用户需求 4）；
+    // 完成透视线后：两灭点 → 以连线为直径的 90° 视场圆；三灭点 → 垂心圆（用户需求 5/6）。
     function perspGuideCompute() {
       const g = state.perspGuide;
       const groups = [];
@@ -52032,7 +52033,12 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       g.groups = groups;
       g.vps = vps.slice(0, 3);
       g.lastParallel = lastParallel;
-      if (vps.length >= 3) {
+      // 视平线吸附（两点透视）：只有 2 个灭点时，把第二组灭点贴到第一组灭点所在水平线上；
+      // 第三组线加入后不再吸附（三点透视使用真实交点，视平线为 V1V2 连线）
+      if (g.vps.length === 2) {
+        g.vps[1].y = g.vps[0].y;
+      }
+      if (g.vps.length >= 3) {
         const m = perspGuideModel();
         if (m) {
           g.h = { x: m.H[0] / CONTE_PAPER_WIDTH, y: m.H[1] / CONTE_PAPER_HEIGHT };
@@ -52041,6 +52047,20 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           g.focalPx = m.f;
           g.focalMm = m.fmm;
         }
+      } else if (g.vps.length === 2) {
+        // 两点透视：H = 两灭点中点，r = |V1V2|/2 = f（90° 视场圆 = 以 V1V2 为直径的圆）
+        const a = toLayer(g.vps[0]), b = toLayer(g.vps[1]);
+        const r = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2;
+        g.h = { x: ((a[0] + b[0]) / 2) / CONTE_PAPER_WIDTH, y: ((a[1] + b[1]) / 2) / CONTE_PAPER_HEIGHT };
+        g.circleRpx = r;
+        const diag = Math.hypot(CONTE_PAPER_WIDTH, CONTE_PAPER_HEIGHT);
+        g.fov = {
+          h: 2 * Math.atan((CONTE_PAPER_WIDTH / 2) / r) * 180 / Math.PI,
+          v: 2 * Math.atan((CONTE_PAPER_HEIGHT / 2) / r) * 180 / Math.PI,
+          d: 2 * Math.atan((diag / 2) / r) * 180 / Math.PI
+        };
+        g.focalPx = r;
+        g.focalMm = 36 * r / CONTE_PAPER_WIDTH;
       } else {
         g.h = null;
         g.circleRpx = 0;
@@ -52151,19 +52171,50 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       drawPaintStageOverlay();
     }
 
+    // 命中检测：把手（透视线两端点）在屏幕上的位置与指针距离 < 16px
+    function perspGuideHandleAt(event, pt) {
+      const rect = state.videoPaintPointerCanvasRect || videoPaintBaseRect();
+      if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
+      const g = state.perspGuide;
+      const flip = videoViewFlipSign() < 0;
+      for (let i = 0; i < g.lines.length; i++) {
+        const line = g.lines[i];
+        for (let k = 0; k < 2; k++) {
+          const end = k === 0 ? 'a' : 'b';
+          const e = line[end];
+          const nx = flip ? 1 - e.x : e.x;
+          const sx = rect.left + nx * rect.width;
+          const sy = rect.top + e.y * rect.height;
+          if (Math.hypot(event.clientX - sx, event.clientY - sy) < 16) return { line: i, end: end };
+        }
+      }
+      return null;
+    }
+
     function beginPerspGuidePointerDown(event) {
       const g = state.perspGuide;
-      if (!g || !g.active || !state.videoEditMode || g.stage !== 'captureLines') return;
+      if (!g || !g.active || !state.videoEditMode) return;
+      // 画布手势绝不能被透视尺拦截：多指（双指缩放）、中键、空格平移/旋转都放行
+      if (event.isPrimary === false) return;
       if (event.button != null && event.button !== 0) return;
+      if (state.paintSpacePanActive) return;
       const tgt = event.target;
       if (!tgt || !tgt.closest || !tgt.closest('#conteVideoStage')) return;
       if (tgt.closest('button, input, select, textarea, .camera-frame-overlay, .preview-bold-layer')) return;
-      if (state.paintRasterOp || state.paintPointerId != null) return;
       const pt = perspGuidePointFromEvent(event);
       if (!pt) return;
+      // 1) 命中把手 → 调整已有透视线（captureLines 与 linesDone 均可）
+      const handle = perspGuideHandleAt(event, pt);
+      if (handle) {
+        event.preventDefault();
+        g.drag = { type: 'handle', line: handle.line, end: handle.end, a: pt, b: pt };
+        drawPaintStageOverlay();
+        return;
+      }
+      // 2) captureLines：开始新透视线；linesDone：不拦截（画布手势自由）
+      if (g.stage !== 'captureLines') return;
       event.preventDefault();
-      event.stopPropagation();
-      g.drag = { a: pt, b: pt };
+      g.drag = { type: 'line', a: pt, b: pt };
       drawPaintStageOverlay();
     }
 
@@ -52181,12 +52232,20 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (!g || !g.drag) return;
       const pt = perspGuidePointFromEvent(event);
       if (pt) g.drag.b = pt;
-      const a = g.drag.a, b = g.drag.b;
+      const drag = g.drag;
       g.drag = null;
-      const dx = b.x - a.x, dy = b.y - a.y;
-      if (Math.hypot(dx, dy) > 0.004) { // 过短的拖动忽略
-        g.lines.push({ a: a, b: b });
-        perspGuideCompute();
+      if (drag.type === 'handle') {
+        const line = g.lines[drag.line];
+        if (line && pt) {
+          line[drag.end] = { x: pt.x, y: pt.y };
+          perspGuideCompute();
+        }
+      } else {
+        const dx = drag.b.x - drag.a.x, dy = drag.b.y - drag.a.y;
+        if (Math.hypot(dx, dy) > 0.004) { // 过短的拖动忽略
+          g.lines.push({ a: { x: drag.a.x, y: drag.a.y }, b: { x: drag.b.x, y: drag.b.y } });
+          perspGuideCompute();
+        }
       }
       drawPaintStageOverlay();
       perspGuideSyncUI();
@@ -52205,7 +52264,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const lw = function(px) { return Math.max(0.5, px / dispScale); };
       ctx.save();
       ctx.lineCap = 'round';
-      // 已落下的透视线（浅红）
+      // 透视线（浅红）
       ctx.strokeStyle = 'rgba(255, 90, 90, 0.45)';
       ctx.lineWidth = lw(1.2);
       ctx.setLineDash([]);
@@ -52215,28 +52274,60 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         ctx.lineTo(conteNormToLayerX(line.b.x), conteNormToLayerY(line.b.y));
         ctx.stroke();
       });
-      // 拖拽中的线（橙色虚线预览）
+      // 每条线两个小把手（白色圆，可拖动调整位置；用户需求 4）
+      if (g.lines.length) {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = 'rgba(20, 20, 20, 0.7)';
+        ctx.lineWidth = lw(0.8);
+        const hr = lw(3.2);
+        g.lines.forEach(function(line) {
+          ctx.beginPath();
+          ctx.arc(conteNormToLayerX(line.a.x), conteNormToLayerY(line.a.y), hr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(conteNormToLayerX(line.b.x), conteNormToLayerY(line.b.y), hr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+      }
+      // 拖拽中的预览（线 = 橙色虚线；把手拖动 = 橙色实心圆跟随）
       if (g.drag) {
+        const a = g.drag.type === 'handle' ? g.lines[g.drag.line][g.drag.end] : g.drag.a;
         ctx.strokeStyle = 'rgba(255, 170, 90, 0.95)';
         ctx.lineWidth = lw(1.3);
         ctx.setLineDash([lw(5), lw(4)]);
         ctx.beginPath();
-        ctx.moveTo(conteNormToLayerX(g.drag.a.x), conteNormToLayerY(g.drag.a.y));
+        ctx.moveTo(conteNormToLayerX(a.x), conteNormToLayerY(a.y));
         ctx.lineTo(conteNormToLayerX(g.drag.b.x), conteNormToLayerY(g.drag.b.y));
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255, 170, 90, 0.95)';
+        ctx.beginPath();
+        ctx.arc(conteNormToLayerX(g.drag.b.x), conteNormToLayerY(g.drag.b.y), lw(3.2), 0, Math.PI * 2);
+        ctx.fill();
       }
       // 灭点标记
       g.vps.forEach(function(vp, i) {
         perspGuideMarker(ctx, dispScale, vp, 'V' + (i + 1));
       });
-      // 2 个灭点：地平线（黄色虚线，仅提示方向）
-      if (g.vps.length === 2 && !g.h) {
+      // 视平线：1 个灭点 → 过它的水平虚线；≥2 个灭点 → 过 V1V2 的虚线（两点透视下即水平线；用户需求 4）
+      if (g.vps.length === 1) {
+        const hy = conteNormToLayerY(g.vps[0].y);
+        ctx.strokeStyle = 'rgba(255, 210, 63, 0.5)';
+        ctx.lineWidth = lw(1);
+        ctx.setLineDash([lw(8), lw(6)]);
+        ctx.beginPath();
+        ctx.moveTo(-1200, hy);
+        ctx.lineTo(CONTE_PAPER_WIDTH + 1200, hy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else if (g.vps.length >= 2) {
         const a = [conteNormToLayerX(g.vps[0].x), conteNormToLayerY(g.vps[0].y)];
         const b = [conteNormToLayerX(g.vps[1].x), conteNormToLayerY(g.vps[1].y)];
         const dx = b[0] - a[0], dy = b[1] - a[1];
         const dl = Math.hypot(dx, dy) || 1;
-        ctx.strokeStyle = 'rgba(255, 210, 63, 0.45)';
+        ctx.strokeStyle = 'rgba(255, 210, 63, 0.5)';
         ctx.lineWidth = lw(1);
         ctx.setLineDash([lw(8), lw(6)]);
         ctx.beginPath();
@@ -52245,47 +52336,21 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      // 3 个灭点：三角形 / 过垂心平行线 / 90° 圆 / 直角顶点 P + HUD
-      const m = g.vps.length >= 3 ? perspGuideModel() : null;
-      if (m) {
-        ctx.strokeStyle = 'rgba(63, 163, 236, 0.95)';
-        ctx.lineWidth = lw(1.4);
-        ctx.beginPath();
-        ctx.moveTo(m.vps[0][0], m.vps[0][1]);
-        ctx.lineTo(m.vps[1][0], m.vps[1][1]);
-        ctx.lineTo(m.vps[2][0], m.vps[2][1]);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(63, 163, 236, 0.45)';
-        ctx.lineWidth = lw(1);
-        ctx.setLineDash([lw(6), lw(4)]);
-        for (let i = 0; i < 3; i++) {
-          const a = m.vps[(i + 1) % 3], b = m.vps[(i + 2) % 3];
-          const dx = b[0] - a[0], dy = b[1] - a[1];
-          const dl = Math.hypot(dx, dy) || 1;
-          ctx.beginPath();
-          ctx.moveTo(m.H[0] - (dx / dl) * 900, m.H[1] - (dy / dl) * 900);
-          ctx.lineTo(m.H[0] + (dx / dl) * 900, m.H[1] + (dy / dl) * 900);
-          ctx.stroke();
-        }
-        ctx.setLineDash([]);
-        ctx.strokeStyle = 'rgba(255, 210, 63, 0.8)';
+      // 完成透视线后：90° 视场圆 + 垂心 必须显示（两灭点=直径圆；三灭点=垂心圆）；
+      // 三角形/平行线/直角顶点等一律不显示（用户需求 5/6）
+      if (g.stage === 'linesDone' && g.vps.length >= 2 && g.h && g.circleRpx > 0) {
+        const hx = conteNormToLayerX(g.h.x), hy = conteNormToLayerY(g.h.y);
+        ctx.strokeStyle = 'rgba(255, 210, 63, 0.85)';
         ctx.lineWidth = lw(1.5);
         ctx.beginPath();
-        ctx.arc(m.H[0], m.H[1], m.r, 0, Math.PI * 2);
+        ctx.arc(hx, hy, g.circleRpx, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fillStyle = '#ffd23f';
         ctx.beginPath();
-        ctx.arc(m.H[0], m.H[1], lw(3.2), 0, Math.PI * 2);
+        ctx.arc(hx, hy, lw(3.2), 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = 'rgba(0, 230, 255, 0.95)';
-        m.p.forEach(function(pt) {
-          ctx.beginPath();
-          ctx.arc(pt[0], pt[1], lw(3), 0, Math.PI * 2);
-          ctx.fill();
-        });
-        drawPerspGuideLabel(ctx, dispScale, 'H', m.H[0] + lw(3), m.H[1] + lw(3));
-        const hud = 'f=' + m.f.toFixed(1) + 'px(≈' + m.fmm.toFixed(1) + 'mm)  FOV h/v/d=' + m.fov.h.toFixed(1) + '/' + m.fov.v.toFixed(1) + '/' + m.fov.d.toFixed(1) + '°';
+        drawPerspGuideLabel(ctx, dispScale, 'H', hx + lw(3), hy + lw(3));
+        const hud = 'f=' + g.focalPx.toFixed(1) + 'px(≈' + g.focalMm.toFixed(1) + 'mm)  FOV h/v/d=' + g.fov.h.toFixed(1) + '/' + g.fov.v.toFixed(1) + '/' + g.fov.d.toFixed(1) + '°';
         drawPerspGuideLabel(ctx, dispScale, hud, 8, 12);
       }
       ctx.restore();
@@ -55311,6 +55376,13 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // stopPropagation too; this is the belt + braces.
       if (event.target && event.target.closest &&
           event.target.closest('.camera-frame-overlay, .preview-bold-layer, button, select, input, textarea')) return;
+      // P0.5 透视尺：工具激活时不在画布落墨，但绝不阻断画布手势（不 stopPropagation，
+      // 双指缩放 / 空格平移 / 旋转照常由各自监听器处理；空格平移在 handlePaintSpacePan 分支已放行）
+      if (state.perspGuide && state.perspGuide.active &&
+          (event.button == null || event.button === 0) && !state.paintSpacePanActive) {
+        event.preventDefault();
+        return;
+      }
       if (state.paintRasterOp) {
         // ver608: a pending curve chord doesn't block input — curve tool resumes it as the bend gesture,
         // any other tool discards it and continues normally.
@@ -58770,7 +58842,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const INLINE_TOOL_LABELS = paintToolLabels(); // ver1011: hoisted — the preset window names tools too
       // ver816: ONE settings surface. ver921: camera joined too.
       let inlineKey = '';
-      if (state.perspGuide && state.perspGuide.active) {
+      if (state.perspGuide && state.perspGuide.active && state.videoEditMode) { // P0.5：透视尺仅视频编辑态显示面板
         inlineKey = 'persp';
       } else if (!state.paintEditTool) {
         inlineKey = paintShapeToolKind() || (state.paintTool === 'bucket' ? 'bucket' : (state.paintTool === 'eraser' ? 'eraser' : 'pen'));
@@ -78843,6 +78915,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // -- re-run the tab so the sheet adopts/releases the dashboard and the rails re-sync (ver597).
       if (typeof isPhoneLayout === 'function' && isPhoneLayout() && state.phoneActiveTab === 'timeline') {
         openPhoneTab('timeline');
+      }
+      // P0.5 透视尺：切回分镜用纸界面时关闭透视尺并清空覆盖层（纸面界面不显示任何透视尺内容）
+      if (!next && state.perspGuide) {
+        perspGuideDeactivate();
+        drawPaintStageOverlay();
       }
     }
 

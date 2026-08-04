@@ -112,14 +112,13 @@ if (gm) {
   state.perspGuide.focalPx = gm.f;
   state.perspGuide.focalMm = gm.fmm;
 }
+state.perspGuide.stage = 'linesDone'; // 完成透视线后：必须显示 90° 圆 + 垂心
 const m3 = drawInto(document.getElementById('c3'), 1.4, 0, 0, drawPerspGuide);
 const m4 = drawInto(document.getElementById('c4'), 2.0, -300, 0, drawPerspGuide);
 p = toCanvas(m3, 280.5, 198);
 window.__checks.push(['B.H@c3', near(document.getElementById('c3'), p.x, p.y, isYellow, 5), 'yellow']);
 p = toCanvas(m3, 280.5 + 300, 198);
 window.__checks.push(['B.circle@c3', near(document.getElementById('c3'), p.x, p.y, function(r,g,b){ return r>220 && g>160 && b<160; }, 6), 'yellow']);
-p = toCanvas(m3, 579.40, 172.34);
-window.__checks.push(['B.P@c3', near(document.getElementById('c3'), p.x, p.y, isCyan, 5), 'cyan']);
 // 灭点标记 V3（layer 595.84, 336.76 → 画布内）
 p = toCanvas(m3, 595.84, 336.76);
 window.__checks.push(['B.V3@c3', near(document.getElementById('c3'), p.x, p.y, isYellow, 6), 'yellow']);

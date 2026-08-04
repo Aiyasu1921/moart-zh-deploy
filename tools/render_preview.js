@@ -79,9 +79,13 @@ VPS_LAYER.forEach(function(vp, gi) {
   });
 });
 perspGuideCompute();
+state.perspGuide.stage = 'linesDone'; // 完成透视线后显示 90° 圆 + 垂心
 drawInto(document.getElementById('c1'), 1.4, 0, 0, false);
-state.perspGuide.vps = state.perspGuide.vps.slice(0, 2);
-state.perspGuide.h = null; state.perspGuide.circleRpx = 0; state.perspGuide.fov = null;
+// 右：只保留前两组（两点透视 → 视平线吸附 + 直径圆）
+state.perspGuide.lines = state.perspGuide.lines.slice(0, 4);
+state.perspGuide.vps = []; state.perspGuide.h = null; state.perspGuide.circleRpx = 0;
+state.perspGuide.fov = null; state.perspGuide.focalPx = 0; state.perspGuide.focalMm = 0;
+perspGuideCompute();
 drawInto(document.getElementById('c2'), 1.4, 0, 0, false);
 </script></body></html>`;
 
