@@ -14289,7 +14289,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'tool.perspRuler.hint': { zh: '透视尺：拉透视线确定灭点（锚定画布坐标，不随摄像机移动）',  ja: 'パース定規：透視線から消失点を決める（用紙座標に固定、カメラに追従しない）', ko: '원근자: 소실선으로 소실점 결정(용지 좌표 고정, 카메라와 무관)', en: 'Persp ruler: set vanishing points from perspective lines (anchored to the paper, not the camera)' },
         'persp.stage.captureLines': { zh: '第 1 步：拉透视线（每 2 条为一组，至少 2 组）',  ja: '手順1：透視線を引く（2本で1グループ、最低2グループ）', ko: '1단계: 소실선 그리기(2개씩 1그룹, 최소 2그룹)', en: 'Step 1: draw perspective lines (2 per group, ≥2 groups)' },
         'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
-        'persp.stage.calibCharacter': { zh: '第 2 步：拖出角色矩形（身高×肩宽），再输入实际身高',  ja: '手順2：キャラ矩形（身長×肩幅）をドラッグし、実際の身長を入力', ko: '2단계: 캐릭터 사각형(키×어깨)을 드래그하고 실제 키 입력', en: 'Step 2: drag a character box (height × shoulder), then enter the real height' },
+        'persp.stage.calibCharacter': { zh: '第 2 步：拖出角色矩形并输入实际身高；下方设置步长/步数，点“生成步进矩形”',  ja: '手順2：キャラ矩形をドラッグし実際の身長を入力。下で歩幅・歩数を設定し「歩行矩形を生成」', ko: '2단계: 캐릭터 사각형을 드래그하고 실제 키 입력. 아래에서 보폭·걸음 수 설정 후 "보행 사각형 생성"', en: 'Step 2: drag the character box and enter the real height; set step length/count below, then tap Generate' },
         'persp.stage.walkPath': { zh: '第 3 步：输入步长与步数，点“生成步进矩形”（靠近 = 向镜头走）',  ja: '手順3：歩幅と歩数を入力し「歩行矩形を生成」（近づく=カメラへ）', ko: '3단계: 보폭과 걸음 수 입력 후 "보행 사각형 생성"(접근=카메라 쪽)', en: 'Step 3: enter step length and count, tap Generate (toward = to the camera)' },
         'persp.height': { zh: '身高 cm',  ja: '身長 cm', ko: '키 cm', en: 'Height cm' },
         'persp.shoulder': { zh: '肩宽',  ja: '肩幅', ko: '어깨 너비', en: 'Shoulder' },
@@ -52200,7 +52200,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         if (focalR) focalR.textContent = g.focalPx > 0 ? g.focalPx.toFixed(1) + 'px' + (g.focalMm > 0 ? '(≈' + g.focalMm.toFixed(1) + 'mm)' : '') : '—';
         if (fovR) fovR.textContent = g.fov ? g.fov.h.toFixed(1) + ' / ' + g.fov.v.toFixed(1) + ' / ' + g.fov.d.toFixed(1) + '°' : '—';
         if (doneBtn) doneBtn.disabled = g.vps.length < 2 || g.stage === 'linesDone'; // 完成后灰掉（用户需求 5）
-        if (doneBtn) doneBtn.hidden = inCalib;
+        if (doneBtn) doneBtn.hidden = inCalib || inWalk;
         if (continueBtn) continueBtn.hidden = g.stage !== 'linesDone';
         if (continueBtn) continueBtn.disabled = g.vps.length < 2;
         if (calibRow) calibRow.hidden = !inCalib;
@@ -52209,8 +52209,9 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         if (heightInput && document.activeElement !== heightInput) heightInput.value = g.character ? String(g.character.heightCm) : '160';
         if (shoulderR) shoulderR.textContent = g.character && g.character.shoulderCm > 0 ? g.character.shoulderCm.toFixed(1) + 'cm' : '—';
         if (uR) uR.textContent = g.character && g.character.uCm > 0 ? g.character.uCm.toFixed(1) + 'cm' : '—';
-        if (walkRow) walkRow.hidden = !inWalk;
-        if (walkRow2) walkRow2.hidden = !inWalk;
+        // 步长/步数/方向/生成：角色校准阶段就显示，避免“找不到步长输入框”
+        if (walkRow) walkRow.hidden = !(inCalib || inWalk);
+        if (walkRow2) walkRow2.hidden = !(inCalib || inWalk);
         if (stepCmInput && document.activeElement !== stepCmInput) stepCmInput.value = String(g.walk && g.walk.stepCm || 60);
         if (stepCountInput && document.activeElement !== stepCountInput) stepCountInput.value = String(g.walk && g.walk.stepCount || 5);
         if (dirBtn) dirBtn.textContent = g.walk && g.walk.toward ? t('persp.dir.toward') : t('persp.dir.away');

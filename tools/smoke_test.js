@@ -154,6 +154,10 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     overlayNonBlank: (function() { const ov = document.querySelector('.video-paint-stage-overlay'); if (!ov) return null; const d = ov.getContext('2d').getImageData(0, 0, ov.width, ov.height).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; return s > 0; })()
   }));
   console.log('CALIB RESULT', JSON.stringify(calibResult));
+  const calibWalkVisible = await page.evaluate(function() {
+    return { walkRowHidden: (document.getElementById('perspWalkRow') || {}).hidden, genBtnVisible: (function() { const b = document.getElementById('perspWalkGenBtn'); if (!b) return null; const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; })() };
+  });
+  console.log('CALIB WALK ROW (should be visible)', JSON.stringify(calibWalkVisible));
 
   // P1.5：纵深步进——设步数 3，点“生成步进矩形”
   await page.evaluate(function() {
