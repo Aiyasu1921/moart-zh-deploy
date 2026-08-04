@@ -14291,7 +14291,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'persp.stage.captureLines': { zh: '第 1 步：拉透视线（每 2 条为一组，至少 2 组）',  ja: '手順1：透視線を引く（2本で1グループ、最低2グループ）', ko: '1단계: 소실선 그리기(2개씩 1그룹, 최소 2그룹)', en: 'Step 1: draw perspective lines (2 per group, ≥2 groups)' },
         'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
         'persp.stage.calibCharacter': { zh: '第 2 步：拖出角色矩形并输入实际身高；下方设置步长/步数，点“生成步进矩形”',  ja: '手順2：キャラ矩形をドラッグし実際の身長を入力。下で歩幅・歩数を設定し「歩行矩形を生成」', ko: '2단계: 캐릭터 사각형을 드래그하고 실제 키 입력. 아래에서 보폭·걸음 수 설정 후 "보행 사각형 생성"', en: 'Step 2: drag the character box and enter the real height; set step length/count below, then tap Generate' },
-        'persp.stage.walkPath': { zh: '第 3 步：步长/步数已就绪，点“生成步进矩形”。默认沿画布垂直方向（正对摄像机纵深）；在画布上拖一条方向线可改为斜向',  ja: '手順3：歩幅・歩数で「歩行矩形を生成」。初期は画布の垂直方向（カメラ正面の奥行）；方向線をドラッグで斜めに', ko: '3단계: 보폭·걸음 수로 "보행 사각형 생성". 기본은 화면 세로 방향(카메라 정면 깊이); 방향선 드래그로 사선', en: 'Step 3: tap Generate. Default path is the canvas vertical (straight toward the camera); drag a direction line on the canvas for diagonal' },
+        'persp.stage.walkPath': { zh: '第 3 步：步长/步数已就绪，点“生成步进矩形”。默认沿画布垂直方向（正对摄像机纵深）；从角色脚底中点向外拖一条方向线可改为斜向',  ja: '手順3：歩幅・歩数で「歩行矩形を生成」。初期は画布の垂直方向（カメラ正面の奥行）；キャラ足元中央から方向線をドラッグで斜めに', ko: '3단계: 보폭·걸음 수로 "보행 사각형 생성". 기본은 화면 세로 방향(카메라 정면 깊이); 캐릭터 발밑 중앙에서 방향선 드래그로 사선', en: 'Step 3: tap Generate. Default path is the canvas vertical (straight toward the camera); drag a direction line out from the character feet midpoint for diagonal' },
         'persp.height': { zh: '身高 cm',  ja: '身長 cm', ko: '키 cm', en: 'Height cm' },
         'persp.shoulder': { zh: '肩宽',  ja: '肩幅', ko: '어깨 너비', en: 'Shoulder' },
         'persp.u': { zh: '物距 u',  ja: '物距 u', ko: '물체 거리 u', en: 'Object distance u' },
@@ -52021,6 +52021,13 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       return p ? { x: p.x, y: p.y } : null;
     }
 
+    // 角色脚底中点（norm）：方向线射线的一端固定在这里
+    function perspGuideFeetPoint() {
+      const c = state.perspGuide && state.perspGuide.character;
+      if (c && c.box) return { x: c.box.x + c.box.w / 2, y: c.box.y + c.box.h };
+      return null;
+    }
+
     function perspGuideHasContent() {
       if (state.perspGuideDebug) return true;
       const g = state.perspGuide;
@@ -52285,10 +52292,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       c.uCm = h / Math.tan(ratio * fovVRad);
     }
 
-    // P1.5/P2 步进：
-    //  默认（无方向线）：画布垂直方向（正对摄像机的纵深）——脚底 x 固定，y 相对视平线(H.y)按 u0/u 缩放；
-    //  拖了方向线：路径按 n 等分取点，深度由径向距离 |F−H| 反推（v1 近似，P2.1 换虚拟相机精确模型）；
-    //  尺寸一律用原型 atan 公式（FOV 按摄像机框）。
+    // P1.5/P2.1 步进：
+    //  默认（无方向线）：画布垂直方向（正对摄像机纵深）——脚底 x 固定，y 相对视平线(H.y)按 u0/u 缩放；
+    //  方向线（一端固定角色脚底中点）：虚拟相机（地面平面）精确投影——
+    //    相机高度 h_cam = u0·(H.y−feet0.y)/f（由校准反推），世界↔画面映射 x = H.x+f·X/Z、y = H.y−f·h_cam/Z；
+    //  尺寸一律用原型 atan 公式（FOV 按摄像机框），矩形宽高比恒等于 肩宽/身高。
     function perspGuideWalk() {
       const g = state.perspGuide;
       const c = g.character, w = g.walk;
@@ -52301,39 +52309,51 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const n = Math.max(0, Math.floor(Number(w.stepCount) || 0));
       if (!(hCm > 0) || !(shoulderCm > 0) || !(stepCm > 0) || n < 1) return;
       const u0 = c.uCm;
-      const fovH = g.fov.h * Math.PI / 180;
       const fovV = g.fov.v * Math.PI / 180;
-      const H = g.h;
-      const feet0 = { x: c.box.x + c.box.w / 2, y: c.box.y + c.box.h };
+      const H = { x: g.h.x * CONTE_PAPER_WIDTH, y: g.h.y * CONTE_PAPER_HEIGHT }; // layer px
+      const feet0 = {
+        x: (c.box.x + c.box.w / 2) * CONTE_PAPER_WIDTH,
+        y: (c.box.y + c.box.h) * CONTE_PAPER_HEIGHT
+      };
       const sizeAt = function(u) {
-        return {
-          hPx: (CONTE_FRAME_H / fovV) * Math.atan(hCm / u),
-          wPx: (CONTE_FRAME_W / fovH) * Math.atan(shoulderCm / u)
-        };
+        const hPx = (CONTE_FRAME_H / fovV) * Math.atan(hCm / u);
+        const wPx = hPx * (shoulderCm / hCm); // 等比例（用户需求 3）
+        return { hPx: hPx, wPx: wPx };
       };
       const pushStep = function(fx, fy, u, scale, k) {
         const sz = sizeAt(u);
         w.steps.push({
-          x: fx - (sz.wPx / CONTE_PAPER_WIDTH) / 2,
-          y: fy - (sz.hPx / CONTE_PAPER_HEIGHT),
+          x: (fx - sz.wPx / 2) / CONTE_PAPER_WIDTH,
+          y: (fy - sz.hPx) / CONTE_PAPER_HEIGHT,
           w: sz.wPx / CONTE_PAPER_WIDTH,
           h: sz.hPx / CONTE_PAPER_HEIGHT,
           idx: k, u: u, scale: scale
         });
       };
       if (w.path && w.path.a && w.path.b) {
-        // 方向线模式：路径按 n 等分，深度由径向距离 |F−H| 反推
-        const r0 = Math.hypot(feet0.x - H.x, feet0.y - H.y);
+        // P2.1 虚拟相机（地面平面）：由校准反推相机高度，方向线 = 地面射线
+        const f = g.focalPx;
+        const hCam = (H.y - feet0.y) * u0 / f;
+        const Z0 = u0;
+        const X0 = (feet0.x - H.x) * Z0 / f;
+        const D = { x: w.path.b.x * CONTE_PAPER_WIDTH, y: w.path.b.y * CONTE_PAPER_HEIGHT };
+        let ZD = 0, XD = 0;
+        if (hCam > 0 && (H.y - D.y) > 0) {
+          ZD = f * hCam / (H.y - D.y);
+          XD = (D.x - H.x) * ZD / f;
+        }
+        let dx = XD - X0, dz = ZD - Z0;
+        const len = Math.hypot(dx, dz);
+        if (!(len > 0)) { dx = X0; dz = Z0; }
+        const dl = Math.hypot(dx, dz) || 1;
+        dx /= dl; dz /= dl;
         for (let k = 1; k <= n; k++) {
-          const t = k / n;
-          const fx = w.path.a.x + (w.path.b.x - w.path.a.x) * t;
-          const fy = w.path.a.y + (w.path.b.y - w.path.a.y) * t;
-          const rk = Math.hypot(fx - H.x, fy - H.y);
-          if (!(r0 > 0) || !(rk > 0)) break;
-          const scale = r0 / rk;
-          const u = u0 / scale;
-          if (!(u > 0)) break;
-          pushStep(fx, fy, u, scale, k);
+          const Xk = X0 + dx * stepCm * k;
+          const Zk = Z0 + dz * stepCm * k;
+          if (!(Zk > 0)) break;
+          const xk = H.x + f * Xk / Zk;
+          const yk = H.y - f * hCam / Zk;
+          pushStep(xk, yk, Zk, u0 / Zk, k);
         }
       } else {
         // 默认：画布垂直方向（正对摄像机纵深）
@@ -52413,10 +52433,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         drawPaintStageOverlay();
         return;
       }
-      // 3) walkPath：拖方向线（P2）
+      // 3) walkPath：拖方向线（P2.1）——射线一端固定在角色脚底中点
       if (g.stage === 'walkPath') {
         event.preventDefault();
-        g.drag = { type: 'walkdir', a: pt, b: pt };
+        g.drag = { type: 'walkdir', a: perspGuideFeetPoint() || pt, b: pt };
         drawPaintStageOverlay();
         return;
       }

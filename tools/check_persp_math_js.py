@@ -162,29 +162,36 @@ g7.walk.steps.forEach(function(s) {
 });
 console.log('walk vertical default maxErr', vertErr.toExponential(3));
 
-// ---- G: P2 方向线模式：步框位置在路径线上；深度由径向距离 |F−H| 反推 ----
+// ---- G: P2.1 方向线（虚拟相机地面平面）：每步世界距离 = k×步长；矩形等比例 ----
 g7.walk.path = { a: { x: f0.x, y: f0.y }, b: { x: f0.x + 0.3, y: f0.y - 0.25 } };
 g7.walk.stepCount = 4;
 perspGuideWalk();
-let pathErr = 0;
+let ratioErr = 0;
 g7.walk.steps.forEach(function(s) {
-  const f = { x: s.x + s.w / 2, y: s.y + s.h };
-  const t = s.idx / g7.walk.steps.length;
-  const px = g7.walk.path.a.x + (g7.walk.path.b.x - g7.walk.path.a.x) * t;
-  const py = g7.walk.path.a.y + (g7.walk.path.b.y - g7.walk.path.a.y) * t;
-  pathErr = Math.max(pathErr, Math.abs(f.x - px), Math.abs(f.y - py));
+  ratioErr = Math.max(ratioErr, Math.abs((s.w * 561) / (s.h * 396) - 64 / 160));
 });
-console.log('walk path on-line maxErr', pathErr.toExponential(3));
-const r0 = Math.hypot(f0.x - H.x, f0.y - H.y);
-let pathHErr = 0;
+console.log('walk ratio const err', ratioErr.toExponential(3));
+// 世界步长：反投影每步脚底 → 世界坐标，验证距起点 = k×60cm 且沿方向线方向
+const f = g7.focalPx;
+const Hpx = { x: g7.h.x * 561, y: g7.h.y * 396 };
+const F0px = { x: (g7.character.box.x + g7.character.box.w / 2) * 561, y: (g7.character.box.y + g7.character.box.h) * 396 };
+const hCam = (Hpx.y - F0px.y) * g7.character.uCm / f;
+const Z0w = g7.character.uCm;
+const X0w = (F0px.x - Hpx.x) * Z0w / f;
+const Dw = { x: g7.walk.path.b.x * 561, y: g7.walk.path.b.y * 396 };
+const ZDw = f * hCam / (Hpx.y - Dw.y);
+const XDw = (Dw.x - Hpx.x) * ZDw / f;
+const dLen = Math.hypot(XDw - X0w, ZDw - Z0w);
+let stepErr = 0;
 g7.walk.steps.forEach(function(s) {
-  const f = { x: s.x + s.w / 2, y: s.y + s.h };
-  const rk = Math.hypot(f.x - H.x, f.y - H.y);
-  const u = u0 * rk / r0;
-  const hPx = (270 / (g7.fov.v * Math.PI / 180)) * Math.atan(160 / u);
-  pathHErr = Math.max(pathHErr, Math.abs(s.h * 396 - hPx));
+  const ypx = (s.y + s.h) * 396;
+  const xpx = (s.x + s.w / 2) * 561;
+  const Z = f * hCam / (Hpx.y - ypx);
+  const X = (xpx - Hpx.x) * Z / f;
+  const dist = Math.hypot(X - X0w, Z - Z0w);
+  stepErr = Math.max(stepErr, Math.abs(dist - s.idx * 60));
 });
-console.log('walk path sizeErr(px)', pathHErr.toExponential(3));
+console.log('walk world step dist err(cm)', stepErr.toExponential(3));
 """
 
 
