@@ -19,6 +19,7 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_NETWORK_ACCESS_DENIED/.test(m.text())) errors.push(m.text()); });
+  page.on('console', (m) => { if (/P1DBG/.test(m.text())) console.log('APP:', m.text()); });
 
   await page.goto('file:///' + HTML_PATH.split('\\').join('/'));
   await page.waitForTimeout(3000);
@@ -125,6 +126,34 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     vp: (document.getElementById('perspVpReadout') || {}).textContent
   }));
   console.log('AFTER LOCKED HANDLE DRAG (focal should be unchanged)', JSON.stringify(afterLockedDrag));
+
+  // P1：继续步进 → 角色校准：面板出现输入行；拖角色矩形 → 肩宽/物距读数出现
+  await page.evaluate(() => { const b = document.getElementById('perspContinueBtn'); if (b) b.click(); });
+  await page.waitForTimeout(400);
+  const calibPanel = await page.evaluate(() => ({
+    calibRowHidden: (document.getElementById('perspCalibRow') || {}).hidden,
+    hint: (document.getElementById('perspStageHint') || {}).textContent
+  }));
+  console.log('CALIB PANEL', JSON.stringify(calibPanel));
+  // 空格平移后纸面位置已变化：重新测量再拖角色矩形
+  const paper2 = await page.evaluate(() => {
+    const p = document.querySelector('#conteVideoStage .conte-paper');
+    const r = p.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height };
+  });
+  console.log('PAPER2', JSON.stringify(paper2));
+  await page.mouse.move(paper2.x + paper2.w * 0.55, paper2.y + paper2.h * 0.20);
+  await page.mouse.down();
+  await page.mouse.move(paper2.x + paper2.w * 0.72, paper2.y + paper2.h * 0.40, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const calibResult = await page.evaluate(() => ({
+    shoulder: (document.getElementById('perspShoulderReadout') || {}).textContent,
+    u: (document.getElementById('perspUReadout') || {}).textContent,
+    height: (document.getElementById('perspHeightInput') || {}).value,
+    overlayNonBlank: (function() { const ov = document.querySelector('.video-paint-stage-overlay'); if (!ov) return null; const d = ov.getContext('2d').getImageData(0, 0, ov.width, ov.height).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; return s > 0; })()
+  }));
+  console.log('CALIB RESULT', JSON.stringify(calibResult));
 
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });

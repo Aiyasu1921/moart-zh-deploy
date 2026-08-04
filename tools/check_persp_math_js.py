@@ -27,7 +27,8 @@ const state = {
   perspGuide: {
     active: true, visible: true, stage: 'captureLines',
     lines: [], groups: [], vps: [], h: null, circleRpx: 0,
-    fov: null, focalPx: 0, focalMm: 0, drag: null, lastParallel: false
+    fov: null, focalPx: 0, focalMm: 0, drag: null, lastParallel: false,
+    character: { box: null, heightCm: 160, shoulderCm: 0, uCm: 0 }
   }
 };
 """
@@ -115,6 +116,20 @@ const hx = g5.h.x * 561, hy = g5.h.y * 396;
 const vv1 = [g5.vps[0].x * 561, g5.vps[0].y * 396];
 const vv2 = [g5.vps[1].x * 561, g5.vps[1].y * 396];
 console.log('obtuse-3group H=mid(V1,V2)', Math.abs(hx - (vv1[0] + vv2[0]) / 2) < 1e-6 && Math.abs(hy - (vv1[1] + vv2[1]) / 2) < 1e-6);
+
+// ---- E: P1 角色校准：u = 身高/tan(像高占比×垂直FOV)，肩宽=身高×宽高比 ----
+const g6 = guideState();
+g6.lines = g6.lines.slice(0, 4);
+g6.vps = []; g6.h = null; g6.circleRpx = 0; g6.fov = null; g6.focalPx = 0; g6.focalMm = 0;
+perspGuideCompute();
+g6.character = { box: { x: 0.30, y: 0.35, w: 0.12, h: 0.30 }, heightCm: 160, shoulderCm: 0, uCm: 0 };
+perspGuideCalibrate();
+const expectShoulder = 160 * (0.12 / 0.30);
+const ratioPx = (0.30 * 396) / 270;
+const expectU = 160 / Math.tan(ratioPx * (g6.fov.v * Math.PI / 180));
+console.log('calib shoulderCm', g6.character.shoulderCm.toFixed(3), 'expect', expectShoulder.toFixed(3));
+console.log('calib uCm', g6.character.uCm.toFixed(3), 'expect', expectU.toFixed(3));
+console.log('calib match', Math.abs(g6.character.shoulderCm - expectShoulder) < 1e-9 && Math.abs(g6.character.uCm - expectU) < 1e-6);
 """
 
 

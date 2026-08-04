@@ -31,14 +31,17 @@ function main() {
   canvas { background: #3A3E44; border-radius: 4px; display: block; }
 </style></head>
 <body><div class="row">
-  <div class="card">3 组透视线 → 灭点三角形 / 90° 圆<canvas id="c1" width="860" height="620"></canvas></div>
-  <div class="card">2 个灭点：地平线提示<canvas id="c2" width="860" height="620"></canvas></div>
+  <div class="card">3 组透视线完成 → 垂心 + 90° 圆<canvas id="c1" width="860" height="620"></canvas></div>
+  <div class="card">2 个灭点完成 → 直径圆 + 视平线<canvas id="c2" width="860" height="620"></canvas></div>
+  <div class="card">P1 角色校准：矩形 + 身高 → 肩宽 / 物距 u<canvas id="c3" width="860" height="620"></canvas></div>
 </div>
 <script>
 const conteNormToLayerX = function(n) { return n * ${PAPER_W}; };
 const conteNormToLayerY = function(n) { return n * ${PAPER_H}; };
 const CONTE_PAPER_WIDTH = ${PAPER_W};
 const CONTE_PAPER_HEIGHT = ${PAPER_H};
+const CONTE_FRAME_W = 480;
+const CONTE_FRAME_H = 270;
 const window = {};
 const state = {
   perspGuide: {
@@ -87,6 +90,11 @@ state.perspGuide.vps = []; state.perspGuide.h = null; state.perspGuide.circleRpx
 state.perspGuide.fov = null; state.perspGuide.focalPx = 0; state.perspGuide.focalMm = 0;
 perspGuideCompute();
 drawInto(document.getElementById('c2'), 1.4, 0, 0, false);
+// P1：角色校准（绿色矩形 + 脚底线；90° 圆保留）
+state.perspGuide.stage = 'calibCharacter';
+state.perspGuide.character = { box: { x: 0.45, y: 0.20, w: 0.16, h: 0.34 }, heightCm: 160, shoulderCm: 0, uCm: 0 };
+perspGuideCalibrate();
+drawInto(document.getElementById('c3'), 1.4, 0, 0, false);
 </script></body></html>`;
 
   const tmp = path.join(os.tmpdir(), 'persp_preview_' + Date.now() + '.html');
