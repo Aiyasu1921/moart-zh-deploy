@@ -20,6 +20,8 @@ const conteNormToLayerX = function(n) { return n * 561; };
 const conteNormToLayerY = function(n) { return n * 396; };
 const CONTE_PAPER_WIDTH = 561;
 const CONTE_PAPER_HEIGHT = 396;
+const CONTE_FRAME_W = 480;
+const CONTE_FRAME_H = 270;
 const window = {};
 const state = {
   perspGuide: {
@@ -73,18 +75,46 @@ g3.vps.forEach(function(v, i) {
 console.log('3-group maxVpErr(px)', maxVpErr.toExponential(3));
 console.log('3-group focalErr(px)', Math.abs(g3.focalPx - 300).toExponential(3));
 
-// ---- C: 两点透视（2 组线）：第二灭点吸附到视平线，f = |V1V2|/2 ----
+// ---- C: 两点透视（2 组线）：不吸附（视平线=V1V2 连线），f = |V1V2|/2，FOV 以摄像机框 480x270 为准 ----
 const g4 = guideState();
 g4.lines = g4.lines.slice(0, 4);
 g4.vps = []; g4.h = null; g4.circleRpx = 0; g4.fov = null; g4.focalPx = 0; g4.focalMm = 0;
 perspGuideCompute();
 console.log('2-group vps', g4.vps.map(function(v){return [v.x.toFixed(4), v.y.toFixed(4)];}).join(' | '));
-console.log('2-group snapped(y equal)', Math.abs(g4.vps[1].y - g4.vps[0].y) < 1e-12);
 const v1 = [g4.vps[0].x * 561, g4.vps[0].y * 396];
 const v2 = [g4.vps[1].x * 561, g4.vps[1].y * 396];
 const expectF = Math.hypot(v2[0] - v1[0], v2[1] - v1[1]) / 2;
 console.log('2-group focal=|V1V2|/2', Math.abs(g4.focalPx - expectF).toExponential(3));
-console.log('2-group f', g4.focalPx.toFixed(3), 'fov h/v/d', g4.fov.h.toFixed(2) + '/' + g4.fov.v.toFixed(2) + '/' + g4.fov.d.toFixed(2));
+console.log('2-group fov h/v/d (frame-based)', g4.fov.h.toFixed(2) + '/' + g4.fov.v.toFixed(2) + '/' + g4.fov.d.toFixed(2));
+console.log('2-group fov_h match 2*atan(240/f)', Math.abs(g4.fov.h - 2 * Math.atan(240 / g4.focalPx) * 180 / Math.PI).toExponential(3));
+
+// ---- D: 三点透视钝角三角形 → 垂心圆无实解，应回退到 V1V2 直径圆 ----
+const g5 = guideState();
+g5.lines = [];
+g5.vps = []; g5.h = null; g5.circleRpx = 0; g5.fov = null; g5.focalPx = 0; g5.focalMm = 0;
+// 钝角三角形成员（layer）：V1 左、V2 右、V3 上（垂心在三角形外）
+const OBTUSE = [[-168.3, 237.6], [701.25, 217.8], [291.72, -79.2]];
+const OBTUSE_ANCHORS = [
+  [[112.2, 217.8], [168.3, 178.2]],
+  [[392.7, 237.6], [476.85, 198.0]],
+  [[224.4, 138.6], [336.6, 118.8]]
+];
+OBTUSE.forEach(function(vp, gi) {
+  OBTUSE_ANCHORS[gi].forEach(function(a) {
+    const a2 = [a[0] + 0.35 * (a[0] - vp[0]), a[1] + 0.35 * (a[1] - vp[1])];
+    g5.lines.push({
+      a: { x: a[0] / 561, y: a[1] / 396 },
+      b: { x: a2[0] / 561, y: a2[1] / 396 }
+    });
+  });
+});
+perspGuideCompute();
+console.log('obtuse-3group vps', g5.vps.map(function(v){return [v.x.toFixed(4), v.y.toFixed(4)];}).join(' | '));
+console.log('obtuse-3group circleRpx>0 (fallback)', g5.circleRpx > 0);
+const hx = g5.h.x * 561, hy = g5.h.y * 396;
+const vv1 = [g5.vps[0].x * 561, g5.vps[0].y * 396];
+const vv2 = [g5.vps[1].x * 561, g5.vps[1].y * 396];
+console.log('obtuse-3group H=mid(V1,V2)', Math.abs(hx - (vv1[0] + vv2[0]) / 2) < 1e-6 && Math.abs(hy - (vv1[1] + vv2[1]) / 2) < 1e-6);
 """
 
 

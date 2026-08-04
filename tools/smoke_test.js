@@ -109,9 +109,22 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     hint: (document.getElementById('perspStageHint') || {}).textContent,
     focal: (document.getElementById('perspFocalReadout') || {}).textContent,
     fov: (document.getElementById('perspFovReadout') || {}).textContent,
+    doneDisabled: (document.getElementById('perspDoneBtn') || {}).disabled,
     overlayNonBlank: (function() { const ov = document.querySelector('.video-paint-stage-overlay'); if (!ov) return null; const d = ov.getContext('2d').getImageData(0, 0, ov.width, ov.height).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i]; return s > 0; })()
   }));
   console.log('AFTER DONE (2VP circle)', JSON.stringify(afterDone));
+
+  // 完成后把手锁定：拖第 1 条线 a 端 → focal 不应变化
+  await page.mouse.move(paper.x + paper.w * 0.15, paper.y + paper.h * 0.30);
+  await page.mouse.down();
+  await page.mouse.move(paper.x + paper.w * 0.15 + 40, paper.y + paper.h * 0.30 + 10, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const afterLockedDrag = await page.evaluate(() => ({
+    focal: (document.getElementById('perspFocalReadout') || {}).textContent,
+    vp: (document.getElementById('perspVpReadout') || {}).textContent
+  }));
+  console.log('AFTER LOCKED HANDLE DRAG (focal should be unchanged)', JSON.stringify(afterLockedDrag));
 
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });

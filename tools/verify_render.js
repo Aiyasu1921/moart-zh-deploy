@@ -31,6 +31,8 @@ const conteNormToLayerX = function(n) { return n * ${PAPER_W}; };
 const conteNormToLayerY = function(n) { return n * ${PAPER_H}; };
 const CONTE_PAPER_WIDTH = ${PAPER_W};
 const CONTE_PAPER_HEIGHT = ${PAPER_H};
+const CONTE_FRAME_W = 480;
+const CONTE_FRAME_H = 270;
 const state = {
   perspGuideDebug: false,
   perspGuide: {
