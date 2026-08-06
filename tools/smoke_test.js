@@ -215,6 +215,16 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     };
   });
   console.log('DIRECTION PATH', JSON.stringify(pathState), 'bboxBefore', JSON.stringify(bboxBefore), 'bboxAfter', JSON.stringify(bboxAfter));
+  // P2.2：再拖一次 → 追加折点（折线路径）
+  await page.mouse.move(paper2.x + paper2.w * 0.70, paper2.y + paper2.h * 0.22);
+  await page.mouse.down();
+  await page.mouse.move(paper2.x + paper2.w * 0.85, paper2.y + paper2.h * 0.30, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const polyState = await page.evaluate(function() {
+    return { readout: (document.getElementById('perspWalkReadout') || {}).textContent, clearHidden: (document.getElementById('perspClearPathBtn') || {}).hidden };
+  });
+  console.log('POLYLINE APPEND', JSON.stringify(polyState));
   await page.evaluate(function() { const b = document.getElementById('perspClearPathBtn'); if (b) b.click(); });
   await page.waitForTimeout(300);
   const afterClear = await page.evaluate(function() {
