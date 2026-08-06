@@ -15,7 +15,7 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox'] });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   const errors = [];
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_NETWORK_ACCESS_DENIED/.test(m.text())) errors.push(m.text()); });
@@ -259,6 +259,14 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     bytes: dump.length
   } : null;
   console.log('SAVE JSON', JSON.stringify(saveState));
+
+  // ZIP 导出（buildConteFolderBundle 生成的项目 JSON）：应包含 perspGuide
+  const zipJson = await page.evaluate(function() { return window.__perspDumpZip ? window.__perspDumpZip() : null; });
+  console.log('ZIP EXPORT', JSON.stringify(zipJson ? {
+    hasPerspGuide: zipJson.indexOf('"perspGuide"') >= 0,
+    bytes: zipJson.length,
+    err: /^ERR /.test(zipJson) ? zipJson : null
+  } : null));
 
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });

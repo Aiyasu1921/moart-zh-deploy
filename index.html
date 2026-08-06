@@ -45695,6 +45695,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       await hydrateWorkspaceMediaRefs();
       const copy = fastClone(state.project);
       copy.schemaVersion = PROJECT_FORMAT_VERSION;
+      copy.perspGuide = state.perspGuide ? fastClone(state.perspGuide) : null; // P2.3：ZIP 导出同样携带透视尺
       copy.settings = copy.settings || {};
       copy.settings.shortcuts = Object.assign({}, state.shortcuts);
       copy.settings.editorUi = Object.assign({}, copy.settings.editorUi || {}, editorUiStatePayload());
@@ -52022,6 +52023,16 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     window.__perspDump = function() {
       try {
         return JSON.stringify(projectForJsonStorage({ portable: true }));
+      } catch (e) {
+        return 'ERR ' + e.message;
+      }
+    };
+
+    // 调试钩子：返回 ZIP 导出（buildConteFolderBundle）中的项目 JSON 文本（只读）
+    window.__perspDumpZip = async function() {
+      try {
+        const bundle = await buildConteFolderBundle();
+        return bundle && bundle.projectJson || 'NO_BUNDLE';
       } catch (e) {
         return 'ERR ' + e.message;
       }
