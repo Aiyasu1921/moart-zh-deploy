@@ -250,6 +250,39 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
   console.log('AFTER UNDO 1 (方向线×1, enabled)', JSON.stringify(afterUndo1));
   console.log('AFTER UNDO 2 (无方向线, disabled)', JSON.stringify(afterUndo2));
 
+  // 撤销栈压力：连画 6 条方向线（含重复改向），再逐条撤销，应全部退回
+  const stressDirs = [
+    [0.55, 0.22, 0.72, 0.30],
+    [0.60, 0.28, 0.80, 0.34],
+    [0.55, 0.24, 0.75, 0.30],
+    [0.62, 0.30, 0.82, 0.36],
+    [0.56, 0.26, 0.78, 0.32],
+    [0.60, 0.32, 0.84, 0.38]
+  ];
+  for (let i = 0; i < stressDirs.length; i++) {
+    const d = stressDirs[i];
+    await page.mouse.move(paper2.x + paper2.w * d[0], paper2.y + paper2.h * d[1]);
+    await page.mouse.down();
+    await page.mouse.move(paper2.x + paper2.w * d[2], paper2.y + paper2.h * d[3], { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+  }
+  const stressStart = await page.evaluate(function() { return { readout: (document.getElementById('perspWalkReadout') || {}).textContent }; });
+  let undoCount = 0, lastRead = '';
+  for (let i = 0; i < 20; i++) {
+    const st = await page.evaluate(function() {
+      const b = document.getElementById('perspClearPathBtn');
+      const disabled = b ? b.disabled : true;
+      if (!disabled) b.click();
+      return { disabled: disabled, readout: (document.getElementById('perspWalkReadout') || {}).textContent };
+    });
+    if (st.disabled) { lastRead = st.readout; break; }
+    undoCount++;
+    lastRead = st.readout;
+    await page.waitForTimeout(120);
+  }
+  console.log('UNDO STRESS', JSON.stringify({ start: stressStart.readout, undos: undoCount, last: lastRead }));
+
   // P2.3 保存/加载：项目 JSON 应包含 perspGuide（lines/vps/dirs），且可 round-trip 恢复
   const dump = await page.evaluate(function() { return window.__perspDump ? window.__perspDump() : null; });
   const saveState = dump ? {

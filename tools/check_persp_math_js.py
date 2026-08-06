@@ -277,6 +277,7 @@ console.log('load char/walk', restored.character.heightCm, restored.character.uC
 console.log('load match', restored.stage === 'walkPath' && !restored.active && restored.lines.length === 1 &&
   restored.walk.dirs.length === 1 && restored.character.uCm === 300 && restored.walk.stepCm === 55 &&
   restored.walk.dirs[0].anchor === 1 && restored.focalPx === 120);
+console.log('load dirHistory cleared', restored.walk.dirHistory.length === 0);
 console.log('load old-file fallback', normalizePerspGuide(null).stage === 'captureLines' && normalizePerspGuide(null).lines.length === 0);
 """
 

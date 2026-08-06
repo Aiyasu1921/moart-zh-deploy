@@ -85,6 +85,26 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
   }));
   console.log('GENGA AFTER LINES', JSON.stringify(afterLines));
 
+  // P2.x：genga 视图旋转（空格+Shift+拖拽）后，覆盖层应随画布旋转仍非空
+  const ctrX = preview.x + preview.w / 2, ctrY = preview.y + preview.h / 2;
+  await page.keyboard.down(' ');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(ctrX + 120, ctrY);
+  await page.mouse.down();
+  await page.mouse.move(ctrX + 120, ctrY - 80, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.keyboard.up(' ');
+  await page.waitForTimeout(500);
+  const afterRot = await page.evaluate(function() {
+    const ov = document.querySelector('.genga-persp-overlay');
+    if (!ov || !ov.width) return { exists: false, nonBlank: false };
+    const d = ov.getContext('2d').getImageData(0, 0, ov.width, ov.height).data;
+    let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i];
+    return { exists: true, nonBlank: s > 0 };
+  });
+  console.log('GENGA AFTER ROTATE', JSON.stringify(afterRot));
+
   const realErrors = errors.filter(function(e) { return !/ERR_NETWORK_ACCESS_DENIED|goatcounter/.test(e); });
   console.log('--- errors (' + realErrors.length + ') ---');
   realErrors.slice(0, 20).forEach(function(e) { console.log(e); });

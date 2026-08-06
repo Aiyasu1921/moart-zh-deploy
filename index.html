@@ -15034,6 +15034,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           stepCm: 60,           // 步长（cm）
           stepCount: 5,         // 步数
           dirs: [],             // 方向线（射线）列表 [{from: 方框序号(1起), b: 方向点norm}]；空 = 默认垂直向下（走向镜头）
+          dirHistory: [],       // 撤销栈：每次方向线操作前的 dirs 快照
           steps: []             // 生成的矩形序列 [{x,y,w,h,idx,u,scale}]（norm）
         },
         drag: null              // 拖拽中的透视线 {a,b}（norm）
@@ -45415,6 +45416,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const copy = fastClone(state.project);
       copy.schemaVersion = PROJECT_FORMAT_VERSION;
       copy.perspGuide = state.perspGuide ? fastClone(state.perspGuide) : null; // P2.3：透视尺随项目保存
+      if (copy.perspGuide && copy.perspGuide.walk) copy.perspGuide.walk.dirHistory = []; // 撤销栈不落盘
       copy.settings = copy.settings || {};
       copy.settings.shortcuts = Object.assign({}, state.shortcuts);
       copy.settings.editorUi = Object.assign({}, copy.settings.editorUi || {}, editorUiStatePayload());
@@ -45696,6 +45698,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const copy = fastClone(state.project);
       copy.schemaVersion = PROJECT_FORMAT_VERSION;
       copy.perspGuide = state.perspGuide ? fastClone(state.perspGuide) : null; // P2.3：ZIP 导出同样携带透视尺
+      if (copy.perspGuide && copy.perspGuide.walk) copy.perspGuide.walk.dirHistory = []; // 撤销栈不落盘
       copy.settings = copy.settings || {};
       copy.settings.shortcuts = Object.assign({}, state.shortcuts);
       copy.settings.editorUi = Object.assign({}, copy.settings.editorUi || {}, editorUiStatePayload());
@@ -52061,6 +52064,16 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     function perspNormX(n) { return (Number(n) || 0) * perspGuidePaper().w; }
     function perspNormY(n) { return (Number(n) || 0) * perspGuidePaper().h; }
 
+    // genga 视图前向变换：canvas 本地 px → 应用 旋转/翻转（绕画布中心，与预览绘制一致）
+    function gengaViewApplyForward(sx, sy, cw, ch) {
+      const vrot = typeof gengaViewRotValue === 'function' ? (gengaViewRotValue() || 0) : 0;
+      const vfl = typeof gengaViewFlipSign === 'function' ? gengaViewFlipSign() : 1;
+      const ca = Math.cos(vrot), sa = Math.sin(vrot);
+      const ux = sx - cw / 2, uy = sy - ch / 2;
+      const rx = ux * ca - uy * sa, ry = ux * sa + uy * ca;
+      return { x: vfl * rx + cw / 2, y: ry + ch / 2 };
+    }
+
     // norm → 屏幕 client 坐标（conte 用纸面矩形；genga 用预览画布 + gengaPreviewXform）
     function perspGuideScreenPoint(nx, ny) {
       if (state.project && state.project.kind === 'genga') {
@@ -52068,9 +52081,14 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         if (!canvas || !gengaPreviewXform) return null;
         const r = canvas.getBoundingClientRect();
         const paper = perspGuidePaper();
+        const s = {
+          x: gengaPreviewXform.ox + nx * paper.w * gengaPreviewXform.scale,
+          y: gengaPreviewXform.oy + ny * paper.h * gengaPreviewXform.scale
+        };
+        const t = gengaViewApplyForward(s.x, s.y, r.width, r.height);
         return {
-          x: r.left + gengaPreviewXform.ox + nx * paper.w * gengaPreviewXform.scale,
-          y: r.top + gengaPreviewXform.oy + ny * paper.h * gengaPreviewXform.scale
+          x: r.left + t.x,
+          y: r.top + t.y
         };
       }
       const rect = videoPaintBaseRect();
@@ -52131,6 +52149,15 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (!perspGuideHasContent()) return;
       ctx.setTransform(dprCap, 0, 0, dprCap, 0, 0);
       ctx.save();
+      // P2.x：与预览画布一致的视图旋转/翻转（绕画布中心）
+      const vrot = typeof gengaViewRotValue === 'function' ? (gengaViewRotValue() || 0) : 0;
+      const vfl = typeof gengaViewFlipSign === 'function' ? gengaViewFlipSign() : 1;
+      if (vrot || vfl < 0) {
+        ctx.translate(rect.width / 2, rect.height / 2);
+        ctx.scale(vfl, 1);
+        ctx.rotate(vrot);
+        ctx.translate(-rect.width / 2, -rect.height / 2);
+      }
       ctx.translate(gengaPreviewXform.ox, gengaPreviewXform.oy);
       ctx.scale(gengaPreviewXform.scale, gengaPreviewXform.scale);
       drawPerspGuide(ctx, gengaPreviewXform.scale);
@@ -52181,6 +52208,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         g.walk.stepCm = 60;
         g.walk.stepCount = 5;
         g.walk.dirs = [];
+        g.walk.dirHistory = [];
       }
       g.drag = null;
       g.stage = 'captureLines';
@@ -52657,6 +52685,9 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           const anchorIdx = drag.anchorIdx || 1;
           const from = (g.walk.dirs && g.walk.dirs.length && anchorIdx) ? anchorIdx + 1 : 1;
           g.walk.dirs = g.walk.dirs || [];
+          g.walk.dirHistory = g.walk.dirHistory || [];
+          // 每次操作前记录快照，保证撤销可逐条退回（包括同 from 的替换）
+          g.walk.dirHistory.push(g.walk.dirs.map(function(d) { return { from: d.from, anchor: d.anchor, b: { x: d.b.x, y: d.b.y } }; }));
           const existing = g.walk.dirs.findIndex(function(d) { return d.from === from; });
           // anchor = 检测判定的方框（射线的显示起点）；from = 该方框的下一个（改向点）
           const entry = { from: from, anchor: anchorIdx, b: { x: drag.b.x, y: drag.b.y } };
@@ -52667,6 +52698,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       } else if (drag.type === 'walkdirhandle') {
         if (g.walk && g.walk.dirs && g.walk.dirs[drag.dir]) {
           const d = g.walk.dirs[drag.dir];
+          g.walk.dirHistory = g.walk.dirHistory || [];
+          g.walk.dirHistory.push(g.walk.dirs.map(function(dd) { return { from: dd.from, anchor: dd.anchor, b: { x: dd.b.x, y: dd.b.y } }; }));
           d.b = { x: drag.b.x, y: drag.b.y }; // 拖方向点 → 旋转射线（起点由上一方向线决定）
           perspGuideWalk();
         }
@@ -52723,6 +52756,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           stepCm: Number(raw.walk.stepCm) || 60,
           stepCount: Math.max(1, Math.floor(Number(raw.walk.stepCount) || 5)),
           dirs: Array.isArray(raw.walk.dirs) ? raw.walk.dirs : [],
+          dirHistory: [], // 撤销栈不随保存/加载恢复
           steps: Array.isArray(raw.walk.steps) ? raw.walk.steps : []
         };
       }
@@ -60906,11 +60940,18 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (perspClearPathBtn) {
         perspClearPathBtn.addEventListener('click', function() {
           const g = state.perspGuide;
-          if (g && g.walk && g.walk.dirs && g.walk.dirs.length) {
-            g.walk.dirs.pop(); // 撤销最近一条方向线（回到增加它之前）
+          if (g && g.walk) {
+            g.walk.dirHistory = g.walk.dirHistory || [];
+            if (g.walk.dirHistory.length) {
+              g.walk.dirs = g.walk.dirHistory.pop(); // 恢复上一次操作前的快照
+            } else if (g.walk.dirs && g.walk.dirs.length) {
+              g.walk.dirs.pop(); // 兼容旧数据（无历史栈时逐条退回）
+            } else {
+              return;
+            }
             perspGuideWalk();
             perspGuideSyncUI();
-            drawPaintStageOverlay();
+            perspGuideRedraw();
           }
         });
       }
@@ -60924,7 +60965,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           else g.walk.stepCount = Math.max(1, Math.floor(Number(el.value) || 1));
           if (g.stage === 'walkPath') perspGuideWalk();
           perspGuideSyncUI();
-          drawPaintStageOverlay();
+          perspGuideRedraw();
         });
       });
       document.querySelectorAll('.one-px-btn[data-one-px-x][data-one-px-y]').forEach(function(button) {
