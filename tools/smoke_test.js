@@ -250,6 +250,16 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
   console.log('AFTER UNDO 1 (方向线×1, enabled)', JSON.stringify(afterUndo1));
   console.log('AFTER UNDO 2 (无方向线, disabled)', JSON.stringify(afterUndo2));
 
+  // P2.3 保存/加载：项目 JSON 应包含 perspGuide（lines/vps/dirs），且可 round-trip 恢复
+  const dump = await page.evaluate(function() { return window.__perspDump ? window.__perspDump() : null; });
+  const saveState = dump ? {
+    hasPerspGuide: dump.indexOf('"perspGuide"') >= 0,
+    hasLines: dump.indexOf('"lines"') >= 0,
+    hasDirs: dump.indexOf('"dirs"') >= 0,
+    bytes: dump.length
+  } : null;
+  console.log('SAVE JSON', JSON.stringify(saveState));
+
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });
   await page.waitForTimeout(600);

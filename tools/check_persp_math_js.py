@@ -260,6 +260,24 @@ const invZ = function(s) {
 const away = g7.walk.steps.length >= 2 && invZ(g7.walk.steps[0]) < invZ(g7.walk.steps[g7.walk.steps.length - 1]);
 const shrink = g7.walk.steps.length >= 2 && g7.walk.steps[0].h > g7.walk.steps[g7.walk.steps.length - 1].h;
 console.log('walk sky-direction away(Z grows)', away, 'shrink', shrink);
+
+// ---- J: 保存/加载 round-trip：JSON 序列化 → 解析 → normalizePerspGuide 恢复 ----
+const savedPg = {
+  active: true, stage: 'walkPath',
+  lines: [{ a: { x: 0.1, y: 0.2 }, b: { x: 0.3, y: 0.4 } }],
+  vps: [{ x: 0.2, y: 0.5 }], h: { x: 0.4, y: 0.3 }, circleRpx: 120,
+  fov: { h: 60, v: 40, d: 70 }, focalPx: 120, focalMm: 8,
+  character: { box: { x: 0.2, y: 0.3, w: 0.1, h: 0.2 }, heightCm: 170, shoulderCm: 60, uCm: 300 },
+  walk: { stepCm: 55, stepCount: 7, dirs: [{ from: 2, anchor: 1, b: { x: 0.5, y: 0.4 } }], steps: [{ x: 0.2, y: 0.3, w: 0.1, h: 0.2, idx: 1, u: 300, scale: 1 }] },
+  drag: { a: { x: 0, y: 0 }, b: { x: 1, y: 1 } }
+};
+const restored = normalizePerspGuide(JSON.parse(JSON.stringify(savedPg)));
+console.log('load stage/active/lines/vps/dirs', restored.stage, restored.active, restored.lines.length, restored.vps.length, restored.walk.dirs.length);
+console.log('load char/walk', restored.character.heightCm, restored.character.uCm, restored.walk.stepCm, restored.walk.stepCount);
+console.log('load match', restored.stage === 'walkPath' && !restored.active && restored.lines.length === 1 &&
+  restored.walk.dirs.length === 1 && restored.character.uCm === 300 && restored.walk.stepCm === 55 &&
+  restored.walk.dirs[0].anchor === 1 && restored.focalPx === 120);
+console.log('load old-file fallback', normalizePerspGuide(null).stage === 'captureLines' && normalizePerspGuide(null).lines.length === 0);
 """
 
 

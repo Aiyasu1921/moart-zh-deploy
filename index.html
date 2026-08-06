@@ -17495,6 +17495,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       options = options || {};
       const historyViewport = options.historyTimelineViewport || null;
       state.project = normalizeProjectSnapshot(project);
+      state.perspGuide = normalizePerspGuide(project && project.perspGuide); // P2.3：随项目恢复透视尺
       invalidateProjectDataCaches();
       // 묶음 C: project 교체 시 audio cache 무효화
       bumpAudioCycle();
@@ -19963,6 +19964,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       }
       clearWorkspaceConnection({ forgetSavedHandle: true });
       state.project = normalizeProjectSnapshot(createInitialProject());
+      state.perspGuide = normalizePerspGuide(null); // 新建项目：透视尺重置
       invalidateProjectDataCaches();
       state.project.settings = state.project.settings || {};
       state.project.settings.localWorkspace = normalizeWorkspaceSettings({ enabled: false });
@@ -44771,6 +44773,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       ));
       state.project = normalizeProjectSnapshot(project);
       state.project.settings.localWorkspace = workspaceSettings;
+      state.perspGuide = normalizePerspGuide(project && project.perspGuide); // P2.3：工作区项目同样恢复
       invalidateProjectDataCaches();
       if (state.project.settings && state.project.settings.shortcuts) {
         state.shortcuts = normalizedShortcutSettings(state.project.settings.shortcuts);
@@ -45411,6 +45414,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       flushAllLayerLiveBitmaps(); // ver636: materialize any deferred layer PNGs into the LIVE drawings before cloning
       const copy = fastClone(state.project);
       copy.schemaVersion = PROJECT_FORMAT_VERSION;
+      copy.perspGuide = state.perspGuide ? fastClone(state.perspGuide) : null; // P2.3：透视尺随项目保存
       copy.settings = copy.settings || {};
       copy.settings.shortcuts = Object.assign({}, state.shortcuts);
       copy.settings.editorUi = Object.assign({}, copy.settings.editorUi || {}, editorUiStatePayload());
@@ -51509,8 +51513,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       try { flushIndexedDbAutosave(); } catch(e){}      // persist the user's work before we swap it out
       tlTut = { idx:0, solved:false, mini: !!miniContainer, saved:{
         project: state.project, undo: state.undoStack, redo: state.redoStack,
-        frame: state.gengaFrame, sel: state.gengaSelectedLayerId, tool: state.paintEditTool } };
+        frame: state.gengaFrame, sel: state.gengaSelectedLayerId, tool: state.paintEditTool,
+        perspGuide: state.perspGuide } };
       state.project = tlTutMakeProject();
+      state.perspGuide = normalizePerspGuide(null); // 教程项目不带透视尺
       state.undoStack = []; state.redoStack = [];
       state.paintEditTool = '';
       if (typeof invalidateVideoTimelineCache === 'function') invalidateVideoTimelineCache();
@@ -51525,6 +51531,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const s = tlTut.saved; tlTut = null;
       state.project = s.project; state.undoStack = s.undo; state.redoStack = s.redo;
       state.gengaFrame = s.frame; state.gengaSelectedLayerId = s.sel; state.paintEditTool = s.tool;
+      state.perspGuide = s.perspGuide || normalizePerspGuide(null); // 退出教程恢复透视尺
       if (typeof invalidateVideoTimelineCache === 'function') invalidateVideoTimelineCache();
       tlTutRestoreStage(); // ver1144: put #gengaStage back in its home if the mini host had borrowed it
       tlTutHideCoach();
@@ -52009,6 +52016,15 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       state.perspGuideDebug = on !== false;
       drawPaintStageOverlay();
       return state.perspGuideDebug;
+    };
+
+    // 调试钩子：返回项目 JSON，用于验证 perspGuide 已随项目保存（只读）
+    window.__perspDump = function() {
+      try {
+        return JSON.stringify(projectForJsonStorage({ portable: true }));
+      } catch (e) {
+        return 'ERR ' + e.message;
+      }
     };
 
     // ===== 透视步进尺 P0.5 交互：拉透视线 → 灭点 → 仅透视线出口 =====
@@ -52578,6 +52594,49 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (!g || !g.drag) return;
       g.drag = null;
       drawPaintStageOverlay();
+    }
+
+    // 保存/加载：把加载到的 perspGuide 数据规范化（旧文件/损坏数据安全回退到默认）
+    function normalizePerspGuide(raw) {
+      const def = function() {
+        return {
+          active: false, visible: true, stage: 'captureLines',
+          lines: [], groups: [], vps: [], h: null, circleRpx: 0,
+          fov: null, focalPx: 0, focalMm: 0,
+          character: { box: null, heightCm: 160, shoulderCm: 0, uCm: 0 },
+          walk: { stepCm: 60, stepCount: 5, dirs: [], steps: [] },
+          drag: null
+        };
+      };
+      if (!raw || typeof raw !== 'object') return def();
+      const g = def();
+      if (Array.isArray(raw.lines)) g.lines = raw.lines;
+      if (Array.isArray(raw.groups)) g.groups = raw.groups;
+      if (Array.isArray(raw.vps)) g.vps = raw.vps;
+      if (raw.h && typeof raw.h.x === 'number') g.h = { x: raw.h.x, y: raw.h.y };
+      if (typeof raw.circleRpx === 'number' && isFinite(raw.circleRpx)) g.circleRpx = raw.circleRpx;
+      if (raw.fov && typeof raw.fov.h === 'number') g.fov = { h: raw.fov.h, v: raw.fov.v, d: raw.fov.d };
+      if (typeof raw.focalPx === 'number' && isFinite(raw.focalPx)) { g.focalPx = raw.focalPx; g.focalMm = Number(raw.focalMm) || 0; }
+      if (raw.stage === 'linesDone' || raw.stage === 'calibCharacter' || raw.stage === 'walkPath') g.stage = raw.stage;
+      if (raw.character && typeof raw.character === 'object') {
+        g.character = {
+          box: raw.character.box || null,
+          heightCm: Number(raw.character.heightCm) || 160,
+          shoulderCm: Number(raw.character.shoulderCm) || 0,
+          uCm: Number(raw.character.uCm) || 0
+        };
+      }
+      if (raw.walk && typeof raw.walk === 'object') {
+        g.walk = {
+          stepCm: Number(raw.walk.stepCm) || 60,
+          stepCount: Math.max(1, Math.floor(Number(raw.walk.stepCount) || 5)),
+          dirs: Array.isArray(raw.walk.dirs) ? raw.walk.dirs : [],
+          steps: Array.isArray(raw.walk.steps) ? raw.walk.steps : []
+        };
+      }
+      g.active = false; // 加载后不自动激活工具（点工具按钮才进入编辑）
+      g.drag = null;
+      return g;
     }
 
     function drawPerspGuide(ctx, dispScale) {
