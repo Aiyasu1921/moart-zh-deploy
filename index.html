@@ -52435,6 +52435,19 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       return null;
     }
 
+    // 笔尖（norm 点）最近的方框序号（1 起），无方框返回 null
+    function perspGuideNearestBoxIndex(pt) {
+      const w = state.perspGuide && state.perspGuide.walk;
+      if (!w || !w.steps || !w.steps.length || !pt) return null;
+      const pl = { x: pt.x * CONTE_PAPER_WIDTH, y: pt.y * CONTE_PAPER_HEIGHT };
+      let best = Infinity, idx = null;
+      w.steps.forEach(function(s) {
+        const dd = Math.hypot((s.x + s.w / 2) * CONTE_PAPER_WIDTH - pl.x, (s.y + s.h) * CONTE_PAPER_HEIGHT - pl.y);
+        if (dd < best) { best = dd; idx = s.idx; }
+      });
+      return idx;
+    }
+
     function beginPerspGuidePointerDown(event) {
       const g = state.perspGuide;
       if (!g || !g.active || !state.videoEditMode) return;
@@ -52474,7 +52487,15 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           return;
         }
         event.preventDefault();
-        g.drag = { type: 'walkdir', a: pt, b: pt };
+        // 后续方向线：锚点=检测判定的最近方框脚底；第一条：起点=笔尖
+        const anchorIdx = (g.walk && g.walk.dirs && g.walk.dirs.length) ? perspGuideNearestBoxIndex(pt) : null;
+        const anchorPt = anchorIdx ? perspGuideStepFeet(anchorIdx) : null;
+        g.drag = {
+          type: 'walkdir',
+          a: anchorPt ? { x: anchorPt.x / CONTE_PAPER_WIDTH, y: anchorPt.y / CONTE_PAPER_HEIGHT } : pt,
+          b: pt,
+          anchorIdx: anchorIdx
+        };
         drawPaintStageOverlay();
         return;
       }
@@ -52525,19 +52546,12 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           if (!g.walk) g.walk = { stepCm: 60, stepCount: 5, dirs: [], steps: [] };
           // 第一条方向线：作用于全部步数（from=1）；后续方向线：就近选择方框 →
           // 该方框原地不动，从它的"下一个"起改向
-          let from = 1;
-          if (g.walk.dirs && g.walk.dirs.length && g.walk.steps && g.walk.steps.length) {
-            const al = { x: drag.a.x * CONTE_PAPER_WIDTH, y: drag.a.y * CONTE_PAPER_HEIGHT };
-            let best = Infinity;
-            g.walk.steps.forEach(function(s) {
-              const dd = Math.hypot((s.x + s.w / 2) * CONTE_PAPER_WIDTH - al.x, (s.y + s.h) * CONTE_PAPER_HEIGHT - al.y);
-              if (dd < best) { best = dd; from = s.idx; }
-            });
-            from = from + 1; // 从最近方框的下一个开始改向（最近方框保持原地）
-          }
+          const anchorIdx = drag.anchorIdx || 1;
+          const from = (g.walk.dirs && g.walk.dirs.length && anchorIdx) ? anchorIdx + 1 : 1;
           g.walk.dirs = g.walk.dirs || [];
           const existing = g.walk.dirs.findIndex(function(d) { return d.from === from; });
-          const entry = { from: from, b: { x: drag.b.x, y: drag.b.y } };
+          // anchor = 检测判定的方框（射线的显示起点）；from = 该方框的下一个（改向点）
+          const entry = { from: from, anchor: anchorIdx, b: { x: drag.b.x, y: drag.b.y } };
           if (existing >= 0) g.walk.dirs[existing] = entry;
           else g.walk.dirs.push(entry);
           perspGuideWalk();
@@ -52618,7 +52632,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         } else if (g.drag.type === 'walkdirhandle') {
           const d = g.walk && g.walk.dirs && g.walk.dirs[g.drag.dir];
           let a = null;
-          if (d) a = g.drag.end === 'b' ? perspGuideStepFeet(d.from) : { x: conteNormToLayerX(d.b.x), y: conteNormToLayerY(d.b.y) };
+          if (d) a = g.drag.end === 'b' ? perspGuideStepFeet(d.anchor || d.from) : { x: conteNormToLayerX(d.b.x), y: conteNormToLayerY(d.b.y) };
           if (a) {
             const ax = a.x, ay = a.y;
             const bx = conteNormToLayerX(g.drag.b.x), by = conteNormToLayerY(g.drag.b.y);
@@ -52746,7 +52760,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // 起点由上一方向线决定，不设起点手柄
       if (g.walk && g.walk.dirs && g.walk.dirs.length && g.stage === 'walkPath') {
         g.walk.dirs.forEach(function(d) {
-          const anchor = perspGuideStepFeet(d.from);
+          // 显示起点 = 检测判定的方框（anchor）；无 anchor（第一条）时用改向点 from
+          const anchor = perspGuideStepFeet(d.anchor || d.from);
           if (!anchor) return;
           const bx = conteNormToLayerX(d.b.x), by = conteNormToLayerY(d.b.y);
           const dx = bx - anchor.x, dy = by - anchor.y;
