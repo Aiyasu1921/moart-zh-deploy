@@ -52041,9 +52041,100 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     // ===== 透视步进尺 P0.5 交互：拉透视线 → 灭点 → 仅透视线出口 =====
     // 所有数据均存 norm（画布/纸面）坐标，绘制锚定 .conte-paper，因此摄像机工具/关键帧
     // 移动不会改变透视尺（用户已确认此语义）。
+    // P2.x：支持原画（genga）模式——纸面/画框尺寸按项目类型取（conte 固定 561×396 / 480×270）
+    function perspGuidePaper() {
+      const gt = state.project && state.project.kind === 'genga' && state.project.gengaTimeline;
+      if (gt) {
+        return { w: Math.max(1, Number(gt.paper && gt.paper.w) || 1), h: Math.max(1, Number(gt.paper && gt.paper.h) || 1) };
+      }
+      return { w: CONTE_PAPER_WIDTH, h: CONTE_PAPER_HEIGHT };
+    }
+
+    function perspGuideFrame() {
+      const gt = state.project && state.project.kind === 'genga' && state.project.gengaTimeline;
+      if (gt && gt.camera) {
+        return { w: Math.max(1, Number(gt.camera.w) || 1), h: Math.max(1, Number(gt.camera.h) || 1) };
+      }
+      return { w: CONTE_FRAME_W, h: CONTE_FRAME_H };
+    }
+
+    function perspNormX(n) { return (Number(n) || 0) * perspGuidePaper().w; }
+    function perspNormY(n) { return (Number(n) || 0) * perspGuidePaper().h; }
+
+    // norm → 屏幕 client 坐标（conte 用纸面矩形；genga 用预览画布 + gengaPreviewXform）
+    function perspGuideScreenPoint(nx, ny) {
+      if (state.project && state.project.kind === 'genga') {
+        const canvas = document.getElementById('gengaPreviewCanvas');
+        if (!canvas || !gengaPreviewXform) return null;
+        const r = canvas.getBoundingClientRect();
+        const paper = perspGuidePaper();
+        return {
+          x: r.left + gengaPreviewXform.ox + nx * paper.w * gengaPreviewXform.scale,
+          y: r.top + gengaPreviewXform.oy + ny * paper.h * gengaPreviewXform.scale
+        };
+      }
+      const rect = videoPaintBaseRect();
+      if (!rect) return null;
+      const flip = videoViewFlipSign() < 0;
+      return { x: rect.left + (flip ? 1 - nx : nx) * rect.width, y: rect.top + ny * rect.height };
+    }
+
     function perspGuidePointFromEvent(event) {
+      if (state.project && state.project.kind === 'genga') {
+        const p = typeof gengaPreviewPointerXY === 'function' ? gengaPreviewPointerXY(event) : null;
+        const paper = perspGuidePaper();
+        return p ? { x: p.x / paper.w, y: p.y / paper.h } : null;
+      }
       const p = getVideoPaintPointFromEventRaw(event);
       return p ? { x: p.x, y: p.y } : null;
+    }
+
+    // 统一重绘：conte 走 stage overlay，genga 走 genga 覆盖层
+    function perspGuideRedraw() {
+      if (state.project && state.project.kind === 'genga') {
+        if (typeof gengaDrawPerspGuide === 'function') gengaDrawPerspGuide();
+      } else {
+        drawPaintStageOverlay();
+      }
+    }
+
+    // P2.x genga 覆盖层：与预览画布同尺寸、不接收指针，只画透视尺
+    function ensureGengaPerspOverlay() {
+      const wrap = document.querySelector('.genga-preview');
+      const preview = document.getElementById('gengaPreviewCanvas');
+      if (!wrap || !preview) return null;
+      let ov = wrap.querySelector(':scope > canvas.genga-persp-overlay');
+      if (!ov) {
+        ov = document.createElement('canvas');
+        ov.className = 'genga-persp-overlay';
+        ov.setAttribute('aria-hidden', 'true');
+        ov.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;';
+        wrap.appendChild(ov);
+      }
+      return ov;
+    }
+
+    function gengaDrawPerspGuide() {
+      if (!(state.project && state.project.kind === 'genga')) return;
+      const ov = ensureGengaPerspOverlay();
+      const preview = document.getElementById('gengaPreviewCanvas');
+      if (!ov || !preview || !gengaPreviewXform) return;
+      const rect = preview.getBoundingClientRect();
+      if (!(rect.width > 0) || !(rect.height > 0)) { if (ov.width) ov.width = 0; return; }
+      const dprCap = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+      const bw = Math.round(rect.width * dprCap), bh = Math.round(rect.height * dprCap);
+      if (ov.width !== bw) ov.width = bw;
+      if (ov.height !== bh) ov.height = bh;
+      const ctx = ov.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, bw, bh);
+      if (!perspGuideHasContent()) return;
+      ctx.setTransform(dprCap, 0, 0, dprCap, 0, 0);
+      ctx.save();
+      ctx.translate(gengaPreviewXform.ox, gengaPreviewXform.oy);
+      ctx.scale(gengaPreviewXform.scale, gengaPreviewXform.scale);
+      drawPerspGuide(ctx, gengaPreviewXform.scale);
+      ctx.restore();
     }
 
     // 角色脚底中点（norm）：方向线射线的一端固定在这里
@@ -52065,7 +52156,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         g.active = false;
         g.drag = null;
         updatePaintUI();
-        drawPaintStageOverlay();
+        perspGuideRedraw();
       }
     }
 
@@ -52094,26 +52185,26 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       g.drag = null;
       g.stage = 'captureLines';
       updatePaintUI();
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     // 每组两条线求灭点；完成透视线后：两灭点 → 以连线为直径的 90° 视场圆；
     // 三灭点 → 垂心圆（钝角三角形无实解时回退到 V1V2 直径圆）。
     function perspGuideTwoPointCircle(vpA, vpB) {
       const g = state.perspGuide;
-      const toLayer = function(p) { return [conteNormToLayerX(p.x), conteNormToLayerY(p.y)]; };
+      const toLayer = function(p) { return [perspNormX(p.x), perspNormY(p.y)]; };
       const a = toLayer(vpA), b = toLayer(vpB);
       const r = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2;
-      g.h = { x: ((a[0] + b[0]) / 2) / CONTE_PAPER_WIDTH, y: ((a[1] + b[1]) / 2) / CONTE_PAPER_HEIGHT };
+      g.h = { x: ((a[0] + b[0]) / 2) / perspGuidePaper().w, y: ((a[1] + b[1]) / 2) / perspGuidePaper().h };
       g.circleRpx = r;
       // FOV 以摄像机框（480×270）为标准
       g.fov = {
-        h: 2 * Math.atan((CONTE_FRAME_W / 2) / r) * 180 / Math.PI,
-        v: 2 * Math.atan((CONTE_FRAME_H / 2) / r) * 180 / Math.PI,
-        d: 2 * Math.atan((Math.hypot(CONTE_FRAME_W, CONTE_FRAME_H) / 2) / r) * 180 / Math.PI
+        h: 2 * Math.atan((perspGuideFrame().w / 2) / r) * 180 / Math.PI,
+        v: 2 * Math.atan((perspGuideFrame().h / 2) / r) * 180 / Math.PI,
+        d: 2 * Math.atan((Math.hypot(perspGuideFrame().w, perspGuideFrame().h) / 2) / r) * 180 / Math.PI
       };
       g.focalPx = r;
-      g.focalMm = 36 * r / CONTE_FRAME_W;
+      g.focalMm = 36 * r / perspGuideFrame().w;
     }
 
     function perspGuideCompute() {
@@ -52123,17 +52214,17 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       let lastParallel = false;
       for (let i = 0; i + 1 < g.lines.length; i += 2) {
         const l1 = g.lines[i], l2 = g.lines[i + 1];
-        const p1 = [conteNormToLayerX(l1.a.x), conteNormToLayerY(l1.a.y)];
-        const p2 = [conteNormToLayerX(l1.b.x), conteNormToLayerY(l1.b.y)];
-        const q1 = [conteNormToLayerX(l2.a.x), conteNormToLayerY(l2.a.y)];
-        const q2 = [conteNormToLayerX(l2.b.x), conteNormToLayerY(l2.b.y)];
+        const p1 = [perspNormX(l1.a.x), perspNormY(l1.a.y)];
+        const p2 = [perspNormX(l1.b.x), perspNormY(l1.b.y)];
+        const q1 = [perspNormX(l2.a.x), perspNormY(l2.a.y)];
+        const q2 = [perspNormX(l2.b.x), perspNormY(l2.b.y)];
         const d1 = [p2[0] - p1[0], p2[1] - p1[1]];
         const d2 = [q2[0] - q1[0], q2[1] - q1[1]];
         const vpLayer = PerspMath.lineIntersect(p1, d1, q1, d2);
-        const far = Math.hypot(CONTE_PAPER_WIDTH, CONTE_PAPER_HEIGHT) * 50;
+        const far = Math.hypot(perspGuidePaper().w, perspGuidePaper().h) * 50;
         let vp = null;
         if (vpLayer && Math.abs(vpLayer[0]) < far && Math.abs(vpLayer[1]) < far) {
-          vp = { x: vpLayer[0] / CONTE_PAPER_WIDTH, y: vpLayer[1] / CONTE_PAPER_HEIGHT };
+          vp = { x: vpLayer[0] / perspGuidePaper().w, y: vpLayer[1] / perspGuidePaper().h };
         } else {
           lastParallel = true;
         }
@@ -52146,7 +52237,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (g.vps.length >= 3) {
         const m = perspGuideModel();
         if (m && m.f > 0 && isFinite(m.f)) {
-          g.h = { x: m.H[0] / CONTE_PAPER_WIDTH, y: m.H[1] / CONTE_PAPER_HEIGHT };
+          g.h = { x: m.H[0] / perspGuidePaper().w, y: m.H[1] / perspGuidePaper().h };
           g.circleRpx = m.r;
           g.fov = m.fov;
           g.focalPx = m.f;
@@ -52172,7 +52263,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const g = state.perspGuide;
       if (!g.vps || g.vps.length < 3) return null;
       const vps = g.vps.slice(0, 3).map(function(v) {
-        return [conteNormToLayerX(v.x), conteNormToLayerY(v.y)];
+        return [perspNormX(v.x), perspNormY(v.y)];
       });
       const H = PerspMath.orthocenter(vps[0], vps[1], vps[2]);
       const f = PerspMath.focalFromVps(H, vps);
@@ -52187,11 +52278,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         r: f,
         fov: {
           // P0.5增补：FOV 以摄像机框（画布初始设定 480×270）为标准，摄像机运动不影响
-          h: 2 * Math.atan((CONTE_FRAME_W / 2) / f) * 180 / Math.PI,
-          v: 2 * Math.atan((CONTE_FRAME_H / 2) / f) * 180 / Math.PI,
-          d: 2 * Math.atan((Math.hypot(CONTE_FRAME_W, CONTE_FRAME_H) / 2) / f) * 180 / Math.PI
+          h: 2 * Math.atan((perspGuideFrame().w / 2) / f) * 180 / Math.PI,
+          v: 2 * Math.atan((perspGuideFrame().h / 2) / f) * 180 / Math.PI,
+          d: 2 * Math.atan((Math.hypot(perspGuideFrame().w, perspGuideFrame().h) / 2) / f) * 180 / Math.PI
         },
-        fmm: 36 * f / CONTE_FRAME_W,
+        fmm: 36 * f / perspGuideFrame().w,
         p: p
       };
     }
@@ -52223,7 +52314,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         const inCalib = g.stage === 'calibCharacter';
         const inWalk = g.stage === 'walkPath';
         if (hint) {
-          if (!state.videoEditMode) hint.textContent = t('persp.needVideoMode');
+          if (!state.videoEditMode && !(state.project && state.project.kind === 'genga')) hint.textContent = t('persp.needVideoMode');
           else if (g.stage === 'linesDone') hint.textContent = t('persp.stage.linesDone');
           else if (inWalk) hint.textContent = t('persp.stage.walkPath');
           else if (inCalib) hint.textContent = t('persp.stage.calibCharacter');
@@ -52257,7 +52348,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     }
 
     function perspGuideMarker(ctx, dispScale, vp, label) {
-      const lx = conteNormToLayerX(vp.x), ly = conteNormToLayerY(vp.y);
+      const lx = perspNormX(vp.x), ly = perspNormY(vp.y);
       const s = Math.max(2, 5 / dispScale);
       ctx.save();
       ctx.strokeStyle = 'rgba(255, 210, 63, 0.95)';
@@ -52284,21 +52375,21 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         g.active = true;
       }
       updatePaintUI();
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     function perspGuideFinishLines() {
       const g = state.perspGuide;
       if (g.vps.length >= 2) g.stage = 'linesDone'; // 仅透视线模式：保留数据，可随时继续补第 2、3 步
       updatePaintUI();
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     function perspGuideContinue() {
       const g = state.perspGuide;
       if (g.vps.length >= 2) g.stage = 'calibCharacter'; // P1 第 2 步：角色校准（第 3 步走步在 P1.5）
       updatePaintUI();
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     // P1 角色校准：由角色矩形 + 实际身高反推肩宽与物距 u
@@ -52311,7 +52402,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (!(h > 0) || !(g.focalPx > 0)) return;
       c.shoulderCm = h * (c.box.w / c.box.h); // 宽高比与单位无关
       // 精确针孔投影：u = f·实际身高 / 像高px（像高 = box.h × 纸面高）
-      const hPx0 = c.box.h * CONTE_PAPER_HEIGHT;
+      const hPx0 = c.box.h * perspGuidePaper().h;
       if (!(hPx0 > 0)) return;
       c.uCm = g.focalPx * h / hPx0;
     }
@@ -52334,10 +52425,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (!(hCm > 0) || !(shoulderCm > 0) || !(stepCm > 0) || n < 1) return;
       const u0 = c.uCm;
       const f = g.focalPx;
-      const H = { x: g.h.x * CONTE_PAPER_WIDTH, y: g.h.y * CONTE_PAPER_HEIGHT }; // layer px
+      const H = { x: g.h.x * perspGuidePaper().w, y: g.h.y * perspGuidePaper().h }; // layer px
       const feet0 = {
-        x: (c.box.x + c.box.w / 2) * CONTE_PAPER_WIDTH,
-        y: (c.box.y + c.box.h) * CONTE_PAPER_HEIGHT
+        x: (c.box.x + c.box.w / 2) * perspGuidePaper().w,
+        y: (c.box.y + c.box.h) * perspGuidePaper().h
       };
       const sizeAt = function(u) {
         // 精确针孔投影：hPx = f·身高/Z —— 保证头顶与脚底同落在直线上（用户需求）
@@ -52348,10 +52439,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const pushStep = function(fx, fy, u, scale, k) {
         const sz = sizeAt(u);
         w.steps.push({
-          x: (fx - sz.wPx / 2) / CONTE_PAPER_WIDTH,
-          y: (fy - sz.hPx) / CONTE_PAPER_HEIGHT,
-          w: sz.wPx / CONTE_PAPER_WIDTH,
-          h: sz.hPx / CONTE_PAPER_HEIGHT,
+          x: (fx - sz.wPx / 2) / perspGuidePaper().w,
+          y: (fy - sz.hPx) / perspGuidePaper().h,
+          w: sz.wPx / perspGuidePaper().w,
+          h: sz.hPx / perspGuidePaper().h,
           idx: k, u: u, scale: scale
         });
       };
@@ -52365,7 +52456,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const Z0 = u0;
       const X0 = (feet0.x - H.x) * Z0 / f;
       const worldOf = function(b) {
-        let p = { x: b.x * CONTE_PAPER_WIDTH, y: b.y * CONTE_PAPER_HEIGHT };
+        let p = { x: b.x * perspGuidePaper().w, y: b.y * perspGuidePaper().h };
         if (p.y <= H.y) p.y = H.y + 0.5; // 指向天空 = 极远处（走向纵深）
         const Z = f * hCam / (p.y - H.y);
         return { x: (p.x - H.x) * Z / f, z: Z };
@@ -52400,31 +52491,26 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       g.stage = 'walkPath';
       perspGuideWalk();
       updatePaintUI();
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     function togglePerspGuideVisible() {
       const g = state.perspGuide;
       g.visible = !g.visible;
       updatePaintUI();
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     // 命中检测：把手（透视线两端点）在屏幕上的位置与指针距离 < 16px
     function perspGuideHandleAt(event, pt) {
-      const rect = videoPaintBaseRect();
-      if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
       const g = state.perspGuide;
-      const flip = videoViewFlipSign() < 0;
       for (let i = 0; i < g.lines.length; i++) {
         const line = g.lines[i];
         for (let k = 0; k < 2; k++) {
           const end = k === 0 ? 'a' : 'b';
           const e = line[end];
-          const nx = flip ? 1 - e.x : e.x;
-          const sx = rect.left + nx * rect.width;
-          const sy = rect.top + e.y * rect.height;
-          if (Math.hypot(event.clientX - sx, event.clientY - sy) < 16) return { line: i, end: end };
+          const sp = perspGuideScreenPoint(e.x, e.y);
+          if (sp && Math.hypot(event.clientX - sp.x, event.clientY - sp.y) < 16) return { line: i, end: end };
         }
       }
       return null;
@@ -52432,19 +52518,13 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
 
     // 方向线把手：只设方向点 b（起点由上一方向线决定，不设锚点手柄）；命中 < 18px
     function perspGuideWalkHandleAt(event) {
-      const rect = videoPaintBaseRect();
-      if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
       const g = state.perspGuide;
       const w = g.walk;
       if (!w || !w.dirs || !w.dirs.length) return null;
-      const flip = videoViewFlipSign() < 0;
       for (let i = 0; i < w.dirs.length; i++) {
         const d = w.dirs[i];
-        const p = { x: d.b.x, y: d.b.y, end: 'b' };
-        const nx = flip ? 1 - p.x : p.x;
-        const sx = rect.left + nx * rect.width;
-        const sy = rect.top + p.y * rect.height;
-        if (Math.hypot(event.clientX - sx, event.clientY - sy) < 18) return { dir: i, end: p.end };
+        const sp = perspGuideScreenPoint(d.b.x, d.b.y);
+        if (sp && Math.hypot(event.clientX - sp.x, event.clientY - sp.y) < 18) return { dir: i, end: 'b' };
       }
       return null;
     }
@@ -52456,7 +52536,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       for (let i = 0; i < w.steps.length; i++) {
         const s = w.steps[i];
         if (s.idx === from) {
-          return { x: (s.x + s.w / 2) * CONTE_PAPER_WIDTH, y: (s.y + s.h) * CONTE_PAPER_HEIGHT };
+          return { x: (s.x + s.w / 2) * perspGuidePaper().w, y: (s.y + s.h) * perspGuidePaper().h };
         }
       }
       return null;
@@ -52466,10 +52546,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
     function perspGuideNearestBoxIndex(pt) {
       const w = state.perspGuide && state.perspGuide.walk;
       if (!w || !w.steps || !w.steps.length || !pt) return null;
-      const pl = { x: pt.x * CONTE_PAPER_WIDTH, y: pt.y * CONTE_PAPER_HEIGHT };
+      const pl = { x: pt.x * perspGuidePaper().w, y: pt.y * perspGuidePaper().h };
       let best = Infinity, idx = null;
       w.steps.forEach(function(s) {
-        const dd = Math.hypot((s.x + s.w / 2) * CONTE_PAPER_WIDTH - pl.x, (s.y + s.h) * CONTE_PAPER_HEIGHT - pl.y);
+        const dd = Math.hypot((s.x + s.w / 2) * perspGuidePaper().w - pl.x, (s.y + s.h) * perspGuidePaper().h - pl.y);
         if (dd < best) { best = dd; idx = s.idx; }
       });
       return idx;
@@ -52477,13 +52557,14 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
 
     function beginPerspGuidePointerDown(event) {
       const g = state.perspGuide;
-      if (!g || !g.active || !state.videoEditMode) return;
+      const gengaMode = !!(state.project && state.project.kind === 'genga');
+      if (!g || !g.active || (!state.videoEditMode && !gengaMode)) return;
       // 画布手势绝不能被透视尺拦截：多指（双指缩放）、中键、空格平移/旋转都放行
       if (event.isPrimary === false) return;
       if (event.button != null && event.button !== 0) return;
       if (state.paintSpacePanActive) return;
       const tgt = event.target;
-      if (!tgt || !tgt.closest || !tgt.closest('#conteVideoStage')) return;
+      if (!tgt || !tgt.closest || !(tgt.closest('#conteVideoStage') || tgt.closest('#gengaPreviewCanvas, .genga-preview'))) return;
       if (tgt.closest('button, input, select, textarea, .camera-frame-overlay, .preview-bold-layer')) return;
       state.videoPaintPointerCanvasRect = null; // 防止取到上一次绘画的过期画布矩形
       const pt = perspGuidePointFromEvent(event);
@@ -52493,14 +52574,14 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (handle) {
         event.preventDefault();
         g.drag = { type: 'handle', line: handle.line, end: handle.end, a: pt, b: pt };
-        drawPaintStageOverlay();
+        perspGuideRedraw();
         return;
       }
       // 2) calibCharacter：拖角色矩形
       if (g.stage === 'calibCharacter') {
         event.preventDefault();
         g.drag = { type: 'box', a: pt, b: pt };
-        drawPaintStageOverlay();
+        perspGuideRedraw();
         return;
       }
       // 3) walkPath：先命中方向线把手；否则拖新方向线（射线），提交时就近选方框改向
@@ -52510,7 +52591,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           event.preventDefault();
           const d = g.walk.dirs[wh.dir];
           g.drag = { type: 'walkdirhandle', dir: wh.dir, end: 'b', a: d.b, b: pt };
-          drawPaintStageOverlay();
+          perspGuideRedraw();
           return;
         }
         event.preventDefault();
@@ -52519,18 +52600,18 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         const anchorPt = anchorIdx ? perspGuideStepFeet(anchorIdx) : null;
         g.drag = {
           type: 'walkdir',
-          a: anchorPt ? { x: anchorPt.x / CONTE_PAPER_WIDTH, y: anchorPt.y / CONTE_PAPER_HEIGHT } : pt,
+          a: anchorPt ? { x: anchorPt.x / perspGuidePaper().w, y: anchorPt.y / perspGuidePaper().h } : pt,
           b: pt,
           anchorIdx: anchorIdx
         };
-        drawPaintStageOverlay();
+        perspGuideRedraw();
         return;
       }
       // 4) captureLines：开始新透视线；其余（linesDone 等）：不拦截（画布手势自由）
       if (g.stage !== 'captureLines') return;
       event.preventDefault();
       g.drag = { type: 'line', a: pt, b: pt };
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     function movePerspGuidePointer(event) {
@@ -52539,7 +52620,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const pt = perspGuidePointFromEvent(event);
       if (!pt) return;
       g.drag.b = pt;
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     function endPerspGuidePointer(event) {
@@ -52596,7 +52677,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           perspGuideCompute();
         }
       }
-      drawPaintStageOverlay();
+      perspGuideRedraw();
       perspGuideSyncUI();
     }
 
@@ -52604,7 +52685,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const g = state.perspGuide;
       if (!g || !g.drag) return;
       g.drag = null;
-      drawPaintStageOverlay();
+      perspGuideRedraw();
     }
 
     // 保存/加载：把加载到的 perspGuide 数据规范化（旧文件/损坏数据安全回退到默认）
@@ -52661,8 +52742,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       ctx.lineWidth = lw(1.2);
       ctx.setLineDash([]);
       g.lines.forEach(function(line) {
-        const ax = conteNormToLayerX(line.a.x), ay = conteNormToLayerY(line.a.y);
-        const bx = conteNormToLayerX(line.b.x), by = conteNormToLayerY(line.b.y);
+        const ax = perspNormX(line.a.x), ay = perspNormY(line.a.y);
+        const bx = perspNormX(line.b.x), by = perspNormY(line.b.y);
         const dx = bx - ax, dy = by - ay;
         const dl = Math.hypot(dx, dy) || 1;
         ctx.beginPath();
@@ -52678,11 +52759,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         const hr = lw(3.2);
         g.lines.forEach(function(line) {
           ctx.beginPath();
-          ctx.arc(conteNormToLayerX(line.a.x), conteNormToLayerY(line.a.y), hr, 0, Math.PI * 2);
+          ctx.arc(perspNormX(line.a.x), perspNormY(line.a.y), hr, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
           ctx.beginPath();
-          ctx.arc(conteNormToLayerX(line.b.x), conteNormToLayerY(line.b.y), hr, 0, Math.PI * 2);
+          ctx.arc(perspNormX(line.b.x), perspNormY(line.b.y), hr, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
         });
@@ -52691,10 +52772,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // 把手拖动 = 显示"被调整的那条线"（不是新线预览，用户需求 3）
       if (g.drag) {
         if (g.drag.type === 'box') {
-          const x = conteNormToLayerX(Math.min(g.drag.a.x, g.drag.b.x));
-          const y = conteNormToLayerY(Math.min(g.drag.a.y, g.drag.b.y));
-          const w = Math.abs(conteNormToLayerX(g.drag.b.x) - conteNormToLayerX(g.drag.a.x));
-          const h = Math.abs(conteNormToLayerY(g.drag.b.y) - conteNormToLayerY(g.drag.a.y));
+          const x = perspNormX(Math.min(g.drag.a.x, g.drag.b.x));
+          const y = perspNormY(Math.min(g.drag.a.y, g.drag.b.y));
+          const w = Math.abs(perspNormX(g.drag.b.x) - perspNormX(g.drag.a.x));
+          const h = Math.abs(perspNormY(g.drag.b.y) - perspNormY(g.drag.a.y));
           ctx.strokeStyle = 'rgba(255, 170, 90, 0.95)';
           ctx.lineWidth = lw(1.3);
           ctx.setLineDash([]);
@@ -52702,10 +52783,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         } else if (g.drag.type === 'walkdirhandle') {
           const d = g.walk && g.walk.dirs && g.walk.dirs[g.drag.dir];
           let a = null;
-          if (d) a = g.drag.end === 'b' ? perspGuideStepFeet(d.anchor || d.from) : { x: conteNormToLayerX(d.b.x), y: conteNormToLayerY(d.b.y) };
+          if (d) a = g.drag.end === 'b' ? perspGuideStepFeet(d.anchor || d.from) : { x: perspNormX(d.b.x), y: perspNormY(d.b.y) };
           if (a) {
             const ax = a.x, ay = a.y;
-            const bx = conteNormToLayerX(g.drag.b.x), by = conteNormToLayerY(g.drag.b.y);
+            const bx = perspNormX(g.drag.b.x), by = perspNormY(g.drag.b.y);
             const dx = bx - ax, dy = by - ay;
             const dl = Math.hypot(dx, dy) || 1;
             ctx.strokeStyle = 'rgba(255, 170, 90, 0.95)';
@@ -52724,8 +52805,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         } else {
           // 透视线把手：预览"被调整的线"（另一端点 + 拖动中的端点），不再跳新线
           const a = g.drag.type === 'handle' ? (g.drag.end === 'a' ? g.lines[g.drag.line].b : g.lines[g.drag.line].a) : g.drag.a;
-          const ax = conteNormToLayerX(a.x), ay = conteNormToLayerY(a.y);
-          const bx = conteNormToLayerX(g.drag.b.x), by = conteNormToLayerY(g.drag.b.y);
+          const ax = perspNormX(a.x), ay = perspNormY(a.y);
+          const bx = perspNormX(g.drag.b.x), by = perspNormY(g.drag.b.y);
           const dx = bx - ax, dy = by - ay;
           const dl = Math.hypot(dx, dy) || 1;
           ctx.strokeStyle = 'rgba(255, 170, 90, 0.95)';
@@ -52738,7 +52819,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           ctx.setLineDash([]);
           ctx.fillStyle = 'rgba(255, 170, 90, 0.95)';
           ctx.beginPath();
-          ctx.arc(conteNormToLayerX(g.drag.b.x), conteNormToLayerY(g.drag.b.y), lw(3.2), 0, Math.PI * 2);
+          ctx.arc(perspNormX(g.drag.b.x), perspNormY(g.drag.b.y), lw(3.2), 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -52748,18 +52829,18 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       });
       // 视平线：1 个灭点 → 过它的水平虚线；≥2 个灭点 → 过 V1V2 的虚线（两点透视下即水平线；用户需求 4）
       if (g.vps.length === 1) {
-        const hy = conteNormToLayerY(g.vps[0].y);
+        const hy = perspNormY(g.vps[0].y);
         ctx.strokeStyle = 'rgba(255, 210, 63, 0.5)';
         ctx.lineWidth = lw(1);
         ctx.setLineDash([lw(8), lw(6)]);
         ctx.beginPath();
         ctx.moveTo(-1200, hy);
-        ctx.lineTo(CONTE_PAPER_WIDTH + 1200, hy);
+        ctx.lineTo(perspGuidePaper().w + 1200, hy);
         ctx.stroke();
         ctx.setLineDash([]);
       } else if (g.vps.length >= 2) {
-        const a = [conteNormToLayerX(g.vps[0].x), conteNormToLayerY(g.vps[0].y)];
-        const b = [conteNormToLayerX(g.vps[1].x), conteNormToLayerY(g.vps[1].y)];
+        const a = [perspNormX(g.vps[0].x), perspNormY(g.vps[0].y)];
+        const b = [perspNormX(g.vps[1].x), perspNormY(g.vps[1].y)];
         const dx = b[0] - a[0], dy = b[1] - a[1];
         const dl = Math.hypot(dx, dy) || 1;
         ctx.strokeStyle = 'rgba(255, 210, 63, 0.5)';
@@ -52774,7 +52855,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // 完成透视线后：90° 视场圆 + 垂心 必须显示（两灭点=直径圆；三灭点=垂心圆）；
       // 三角形/平行线/直角顶点等一律不显示（用户需求 5/6）
       if ((g.stage === 'linesDone' || g.stage === 'calibCharacter' || g.stage === 'walkPath') && g.vps.length >= 2 && g.h && g.circleRpx > 0) {
-        const hx = conteNormToLayerX(g.h.x), hy = conteNormToLayerY(g.h.y);
+        const hx = perspNormX(g.h.x), hy = perspNormY(g.h.y);
         ctx.strokeStyle = 'rgba(255, 210, 63, 0.85)';
         ctx.lineWidth = lw(1.5);
         ctx.beginPath();
@@ -52792,9 +52873,9 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (g.character && g.character.box && g.character.box.w > 0 &&
           (g.stage === 'calibCharacter' || g.stage === 'walkPath' || g.stage === 'done')) {
         const bx = g.character.box;
-        const x = conteNormToLayerX(bx.x), y = conteNormToLayerY(bx.y);
-        const w = conteNormToLayerX(bx.x + bx.w) - x;
-        const h = conteNormToLayerY(bx.y + bx.h) - y;
+        const x = perspNormX(bx.x), y = perspNormY(bx.y);
+        const w = perspNormX(bx.x + bx.w) - x;
+        const h = perspNormY(bx.y + bx.h) - y;
         ctx.fillStyle = 'rgba(49, 171, 86, 0.14)';
         ctx.strokeStyle = 'rgba(49, 171, 86, 0.95)';
         ctx.lineWidth = lw(1.5);
@@ -52814,9 +52895,9 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         ctx.lineWidth = lw(1.2);
         ctx.setLineDash([]);
         g.walk.steps.forEach(function(s) {
-          const x = conteNormToLayerX(s.x), y = conteNormToLayerY(s.y);
-          const wpx = conteNormToLayerX(s.x + s.w) - x;
-          const hpx = conteNormToLayerY(s.y + s.h) - y;
+          const x = perspNormX(s.x), y = perspNormY(s.y);
+          const wpx = perspNormX(s.x + s.w) - x;
+          const hpx = perspNormY(s.y + s.h) - y;
           ctx.fillRect(x, y, wpx, hpx);
           ctx.strokeRect(x, y, wpx, hpx);
           ctx.beginPath();
@@ -52833,7 +52914,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           // 显示起点 = 检测判定的方框（anchor）；无 anchor（第一条）时用改向点 from
           const anchor = perspGuideStepFeet(d.anchor || d.from);
           if (!anchor) return;
-          const bx = conteNormToLayerX(d.b.x), by = conteNormToLayerY(d.b.y);
+          const bx = perspNormX(d.b.x), by = perspNormY(d.b.y);
           const dx = bx - anchor.x, dy = by - anchor.y;
           const dl = Math.hypot(dx, dy) || 1;
           ctx.strokeStyle = 'rgba(255, 170, 90, 0.8)';
@@ -59342,7 +59423,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const INLINE_TOOL_LABELS = paintToolLabels(); // ver1011: hoisted — the preset window names tools too
       // ver816: ONE settings surface. ver921: camera joined too.
       let inlineKey = '';
-      if (state.perspGuide && state.perspGuide.active && state.videoEditMode) { // P0.5：透视尺仅视频编辑态显示面板
+      if (state.perspGuide && state.perspGuide.active && (state.videoEditMode || (state.project && state.project.kind === 'genga'))) { // P2.x：conte 视频编辑 / genga 均显示面板
         inlineKey = 'persp';
       } else if (!state.paintEditTool) {
         inlineKey = paintShapeToolKind() || (state.paintTool === 'bucket' ? 'bucket' : (state.paintTool === 'eraser' ? 'eraser' : 'pen'));
@@ -72264,6 +72345,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           }
         }
       }
+      // P2.x genga：透视尺覆盖层（整张预览画完后绘制）
+      gengaDrawPerspGuide();
     }
     // how far FX pushes any visible layer's content past the paper edge at `frame` → preview canvas padding
     // (so zoomed/moved content isn't clipped in the surrounding margin). The paper stays fixed, so only the
@@ -72600,6 +72683,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // state.shortcuts.canvasPan as of ver746). Inherits conte's document-level pointerup/pointercancel +
       // window-blur backstops automatically (see startPaintViewportPanDrag's ver747 comment).
       if (beginPaintMiddleClickPan(ev, ev.target) || beginPaintSpacePan(ev, ev.target)) return;
+      // P2.x 透视尺：genga 工具激活时不落墨（不拦截，双指缩放/平移/旋转照常）
+      if (state.perspGuide && state.perspGuide.active) {
+        if (ev.cancelable) ev.preventDefault();
+        return;
+      }
       // ver864: a mouse right/middle-click must not draw or run any tool op — parity with conte's beginPaintStroke,
       // which gates on the same memoPrimaryPointerDownAllowed (pen/touch always pass; mouse only on button 0). This
       // runs AFTER the middle-click pan above (that needs button 1) so panning still works; the contextmenu event
