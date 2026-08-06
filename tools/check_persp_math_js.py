@@ -118,7 +118,7 @@ const vv1 = [g5.vps[0].x * 561, g5.vps[0].y * 396];
 const vv2 = [g5.vps[1].x * 561, g5.vps[1].y * 396];
 console.log('obtuse-3group H=mid(V1,V2)', Math.abs(hx - (vv1[0] + vv2[0]) / 2) < 1e-6 && Math.abs(hy - (vv1[1] + vv2[1]) / 2) < 1e-6);
 
-// ---- E: P1 角色校准：u = 身高/tan(像高占比×垂直FOV)，肩宽=身高×宽高比 ----
+// ---- E: P1 角色校准：u = f·身高/像高px（精确针孔），肩宽=身高×宽高比 ----
 const g6 = guideState();
 g6.lines = g6.lines.slice(0, 4);
 g6.vps = []; g6.h = null; g6.circleRpx = 0; g6.fov = null; g6.focalPx = 0; g6.focalMm = 0;
@@ -126,13 +126,12 @@ perspGuideCompute();
 g6.character = { box: { x: 0.30, y: 0.35, w: 0.12, h: 0.30 }, heightCm: 160, shoulderCm: 0, uCm: 0 };
 perspGuideCalibrate();
 const expectShoulder = 160 * (0.12 / 0.30);
-const ratioPx = (0.30 * 396) / 270;
-const expectU = 160 / Math.tan(ratioPx * (g6.fov.v * Math.PI / 180));
+const expectU = g6.focalPx * 160 / (0.30 * 396);
 console.log('calib shoulderCm', g6.character.shoulderCm.toFixed(3), 'expect', expectShoulder.toFixed(3));
 console.log('calib uCm', g6.character.uCm.toFixed(3), 'expect', expectU.toFixed(3));
 console.log('calib match', Math.abs(g6.character.shoulderCm - expectShoulder) < 1e-9 && Math.abs(g6.character.uCm - expectU) < 1e-6);
 
-// ---- F: 默认方向（画布垂直向下 = 径向朝镜头）：尺寸 = atan 公式；脚底 x 固定、y 沿垂直 ---- 
+// ---- F: 默认方向（画布垂直向下 = 径向朝镜头）：尺寸 = f·h/Z；脚底/头顶同落在直线上 ---- 
 const g7 = guideState();
 g7.lines = [];
 g7.vps = []; g7.h = null; g7.circleRpx = 0; g7.fov = null; g7.focalPx = 0; g7.focalMm = 0;
@@ -150,7 +149,6 @@ g7.character = { box: { x: 0.30, y: 0.35, w: 0.12, h: 0.30 }, heightCm: 160, sho
 g7.walk = { stepCm: 60, stepCount: 5, path: null, steps: [] };
 perspGuideWalk();
 const u0 = g7.character.uCm;
-const fovV = g7.fov.v * Math.PI / 180;
 const fpx = g7.focalPx;
 const Hpx = { x: g7.h.x * 561, y: g7.h.y * 396 };
 const F0px = { x: (g7.character.box.x + g7.character.box.w / 2) * 561, y: (g7.character.box.y + g7.character.box.h) * 396 };
@@ -161,31 +159,40 @@ const len0 = Math.hypot(X0w, Z0w);
 let maxH = 0;
 g7.walk.steps.forEach(function(s) {
   const u = Z0w * (1 - s.idx * 60 / len0);
-  const hPx = (270 / fovV) * Math.atan(160 / u);
+  const hPx = fpx * 160 / u;
   maxH = Math.max(maxH, Math.abs(s.h * 396 - hPx));
 });
 console.log('walk steps', g7.walk.steps.length, 'max hErr(px)', maxH.toExponential(3));
 console.log('walk toward sizes grow', g7.walk.steps.length >= 2 && g7.walk.steps[0].h < g7.walk.steps[g7.walk.steps.length - 1].h);
 // 默认方向 = 画布垂直向下：脚底 x 固定，y = H.y + f·hCam/Z
 let vertErr = 0;
+let headErr = 0;
 g7.walk.steps.forEach(function(s) {
   const f = { x: s.x + s.w / 2, y: s.y + s.h };
   const u = Z0w * (1 - s.idx * 60 / len0);
   vertErr = Math.max(vertErr, Math.abs(f.x * 561 - F0px.x));
   vertErr = Math.max(vertErr, Math.abs(f.y * 396 - (Hpx.y + fpx * hCam / u)));
+  // 头顶也在直线上：top_y = H.y + f·(hCam − 160)/Z
+  headErr = Math.max(headErr, Math.abs(s.y * 396 - (Hpx.y + fpx * (hCam - 160) / u)));
 });
 console.log('walk vertical default maxErr', vertErr.toExponential(3));
+console.log('walk head on-line err(px)', headErr.toExponential(3));
 
-// ---- G: P2.1 方向线（虚拟相机地面平面）：方向正确 + 每步世界距离 = k×步长 + 等比例 ----
+// ---- G: P2.1 方向线（虚拟相机地面平面）：方向正确 + 每步世界距离 = k×步长 + 等比例 + 头顶共线 ----
 const f0 = { x: g7.character.box.x + g7.character.box.w / 2, y: g7.character.box.y + g7.character.box.h };
 g7.walk.path = { a: { x: f0.x, y: f0.y }, b: { x: f0.x + 0.3, y: f0.y - 0.25 } };
 g7.walk.stepCount = 4;
 perspGuideWalk();
 let ratioErr = 0;
+let gHeadErr = 0;
 g7.walk.steps.forEach(function(s) {
   ratioErr = Math.max(ratioErr, Math.abs((s.w * 561) / (s.h * 396) - 64 / 160));
+  const ypx = (s.y + s.h) * 396;
+  const Z = fpx * hCam / (ypx - Hpx.y);
+  gHeadErr = Math.max(gHeadErr, Math.abs(s.y * 396 - (Hpx.y + fpx * (hCam - 160) / Z)));
 });
 console.log('walk ratio const err', ratioErr.toExponential(3));
+console.log('walk path head on-line err(px)', gHeadErr.toExponential(3));
 // 世界步长：反投影每步脚底 → 世界坐标，验证距起点 = k×60cm 且沿方向线方向
 const Dw = { x: g7.walk.path.b.x * 561, y: g7.walk.path.b.y * 396 };
 const ZDw = fpx * hCam / (Dw.y - Hpx.y);
@@ -206,6 +213,18 @@ g7.walk.steps.forEach(function(s) {
 });
 console.log('walk world step dist err(cm)', stepErr.toExponential(3));
 console.log('walk direction err(cm)', dirErr.toExponential(3));
+
+// ---- H: 方向线指向天空（视平线上方）= 走向远处纵深：Z 增大、像变小 ----
+g7.walk.path = { a: { x: f0.x, y: f0.y }, b: { x: f0.x + 0.05, y: (g7.h.y) - 0.05 } };
+g7.walk.stepCount = 4;
+perspGuideWalk();
+const invZ = function(s) {
+  const ypx = (s.y + s.h) * 396;
+  return fpx * hCam / (ypx - Hpx.y);
+};
+const away = g7.walk.steps.length >= 2 && invZ(g7.walk.steps[0]) < invZ(g7.walk.steps[g7.walk.steps.length - 1]);
+const shrink = g7.walk.steps.length >= 2 && g7.walk.steps[0].h > g7.walk.steps[g7.walk.steps.length - 1].h;
+console.log('walk sky-direction away(Z grows)', away, 'shrink', shrink);
 """
 
 

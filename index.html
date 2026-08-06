@@ -52280,11 +52280,12 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const c = g.character;
       if (!c || !c.box || !(c.box.w > 0) || !(c.box.h > 0)) return;
       const h = Number(c.heightCm);
-      if (!(h > 0) || !(g.focalPx > 0) || !(g.fov && g.fov.v > 0)) return;
+      if (!(h > 0) || !(g.focalPx > 0)) return;
       c.shoulderCm = h * (c.box.w / c.box.h); // 宽高比与单位无关
-      const ratio = (c.box.h * CONTE_PAPER_HEIGHT) / CONTE_FRAME_H; // 像高(px) / 框高(px)
-      const fovVRad = g.fov.v * Math.PI / 180;
-      c.uCm = h / Math.tan(ratio * fovVRad);
+      // 精确针孔投影：u = f·实际身高 / 像高px（像高 = box.h × 纸面高）
+      const hPx0 = c.box.h * CONTE_PAPER_HEIGHT;
+      if (!(hPx0 > 0)) return;
+      c.uCm = g.focalPx * h / hPx0;
     }
 
     // P1.5/P2.1 步进：
@@ -52304,14 +52305,15 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const n = Math.max(0, Math.floor(Number(w.stepCount) || 0));
       if (!(hCm > 0) || !(shoulderCm > 0) || !(stepCm > 0) || n < 1) return;
       const u0 = c.uCm;
-      const fovV = g.fov.v * Math.PI / 180;
+      const f = g.focalPx;
       const H = { x: g.h.x * CONTE_PAPER_WIDTH, y: g.h.y * CONTE_PAPER_HEIGHT }; // layer px
       const feet0 = {
         x: (c.box.x + c.box.w / 2) * CONTE_PAPER_WIDTH,
         y: (c.box.y + c.box.h) * CONTE_PAPER_HEIGHT
       };
       const sizeAt = function(u) {
-        const hPx = (CONTE_FRAME_H / fovV) * Math.atan(hCm / u);
+        // 精确针孔投影：hPx = f·身高/Z —— 保证头顶与脚底同落在直线上（用户需求）
+        const hPx = f * hCm / u;
         const wPx = hPx * (shoulderCm / hCm); // 等比例（用户需求 3）
         return { hPx: hPx, wPx: wPx };
       };
@@ -52328,17 +52330,24 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       // P2.1 虚拟相机（地面平面）——统一的一条路径：
       //   相机高度 hCam = (feet0.y − H.y)·u0/f（正值，角色脚底在地平线下方）；
       //   世界↔画面：x = H.x + f·X/Z，y = H.y + f·hCam/Z；
-      //   方向：有方向线则用其世界方向；没有（默认）则垂直向下 = 径向朝镜头。
-      const f = g.focalPx;
+      //   方向：有方向线则用其世界方向；没有（默认）则垂直向下 = 径向朝镜头；
+      //   方向线端点指向天空（视平线上方）= 走向远处纵深：沿射线夹到脚底与视平线之间取方向。
       const hCam = (feet0.y - H.y) * u0 / f;
       const Z0 = u0;
       const X0 = (feet0.x - H.x) * Z0 / f;
       let dx, dz;
       if (w.path && w.path.b && hCam > 0) {
         const D = { x: w.path.b.x * CONTE_PAPER_WIDTH, y: w.path.b.y * CONTE_PAPER_HEIGHT };
-        if (D.y > H.y) { // 方向线端点须在地平线下方（地面上的点）
-          const ZD = f * hCam / (D.y - H.y);
-          const XD = (D.x - H.x) * ZD / f;
+        let Dp = D;
+        if (D.y <= H.y) { // 端点在地平线上方：沿射线夹到脚底与地平线之间
+          const t = ((H.y + feet0.y) / 2 - feet0.y) / (D.y - feet0.y);
+          if (isFinite(t) && t > 0) {
+            Dp = { x: feet0.x + (D.x - feet0.x) * t, y: (H.y + feet0.y) / 2 };
+          }
+        }
+        if (Dp.y > H.y) {
+          const ZD = f * hCam / (Dp.y - H.y);
+          const XD = (Dp.x - H.x) * ZD / f;
           dx = XD - X0; dz = ZD - Z0;
         }
       }
