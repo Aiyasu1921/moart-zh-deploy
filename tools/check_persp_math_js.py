@@ -178,9 +178,15 @@ g7.walk.steps.forEach(function(s) {
 console.log('walk vertical default maxErr', vertErr.toExponential(3));
 console.log('walk head on-line err(px)', headErr.toExponential(3));
 
-// ---- G: P2.2 单段路径：沿路径每 stepCm 放一步；方向正确 + 世界距离 = k×步长 + 等比例 + 头顶共线 ----
+// ---- G: P2.2 方向射线：一次生成全部步数；方向正确 + 世界距离 = k×步长 + 等比例 + 头顶共线 ----
 const f0 = { x: g7.character.box.x + g7.character.box.w / 2, y: g7.character.box.y + g7.character.box.h };
-g7.walk.path = [ { x: f0.x, y: f0.y }, { x: f0.x + 0.2, y: g7.h.y + 0.004 } ]; // 近地平线端点 → 世界长度足够
+const worldOf = function(b) {
+  let p = { x: b.x * 561, y: b.y * 396 };
+  if (p.y <= Hpx.y) p.y = Hpx.y + 0.5; // 与代码相同的夹取：指天空 = 极远
+  const Z = fpx * hCam / (p.y - Hpx.y);
+  return { x: (p.x - Hpx.x) * Z / fpx, z: Z };
+};
+g7.walk.dirs = [ { from: 1, b: { x: f0.x + 0.2, y: g7.h.y + 0.004 } } ];
 g7.walk.stepCount = 4;
 perspGuideWalk();
 let ratioErr = 0;
@@ -193,10 +199,10 @@ g7.walk.steps.forEach(function(s) {
 });
 console.log('walk ratio const err', ratioErr.toExponential(3));
 console.log('walk path head on-line err(px)', gHeadErr.toExponential(3));
-// 世界步长：反投影每步脚底 → 世界坐标，验证距起点 = k×60cm 且沿路径方向
-const Dw = { x: g7.walk.path[1].x * 561, y: g7.walk.path[1].y * 396 };
-const ZDw = fpx * hCam / (Dw.y - Hpx.y);
-const XDw = (Dw.x - Hpx.x) * ZDw / fpx;
+// 世界步长：反投影每步脚底 → 世界坐标，验证距起点 = k×60cm 且沿射线方向
+const wb = worldOf(g7.walk.dirs[0].b);
+const dX = wb.x - X0w, dZ = wb.z - Z0w;
+const dL = Math.hypot(dX, dZ);
 let stepErr = 0;
 let dirErr = 0;
 g7.walk.steps.forEach(function(s) {
@@ -206,62 +212,45 @@ g7.walk.steps.forEach(function(s) {
   const X = (xpx - Hpx.x) * Z / fpx;
   const dist = Math.hypot(X - X0w, Z - Z0w);
   stepErr = Math.max(stepErr, Math.abs(dist - s.idx * 60));
-  // 方向平行：|(Vk) × (Vd)| / |Vd| ≈ 0
   const ax = X - X0w, ay = Z - Z0w;
-  const bx = XDw - X0w, by = ZDw - Z0w;
-  dirErr = Math.max(dirErr, Math.abs(ax * by - ay * bx) / (Math.hypot(bx, by) || 1));
+  dirErr = Math.max(dirErr, Math.abs(ax * dZ - ay * dX) / (dL || 1));
 });
 console.log('walk world step dist err(cm)', stepErr.toExponential(3));
 console.log('walk direction err(cm)', dirErr.toExponential(3));
 
-// ---- H: 折线跨拐点：每步世界位置 = 沿折线累计 k×60cm 处（含跨段）----
-g7.walk.path = [
-  { x: f0.x, y: f0.y },
-  { x: f0.x + 0.15, y: f0.y - 0.08 },
-  { x: f0.x + 0.30, y: g7.h.y + 0.004 }
+// ---- H: 中途改向（方向射线 + 就近方框）：第 1~2 步沿 dir1，第 3 步起沿 dir2 ----
+g7.walk.dirs = [
+  { from: 1, b: { x: f0.x + 0.15, y: f0.y - 0.06 } },
+  { from: 3, b: { x: f0.x + 0.30, y: g7.h.y + 0.004 } }
 ];
 g7.walk.stepCount = 5;
 perspGuideWalk();
-// 测试侧按相同规则构建世界折线
-const spts = [];
-for (let i = 0; i < g7.walk.path.length; i++) {
-  let q = { x: g7.walk.path[i].x * 561, y: g7.walk.path[i].y * 396 };
-  if (i > 0 && q.y <= Hpx.y) {
-    const prev = spts[i - 1];
-    const t = ((Hpx.y + prev.y) / 2 - prev.y) / (q.y - prev.y);
-    if (isFinite(t) && t > 0) q = { x: prev.x + (q.x - prev.x) * t, y: (Hpx.y + prev.y) / 2 };
-  }
-  spts.push(q);
-}
-const wpts = spts.map(function(p) {
-  const Z = fpx * hCam / (p.y - Hpx.y);
-  return { x: (p.x - Hpx.x) * Z / fpx, z: Z };
-});
-const slen = [];
-let stot = 0;
-for (let i = 0; i < wpts.length - 1; i++) {
-  const l = Math.hypot(wpts[i + 1].x - wpts[i].x, wpts[i + 1].z - wpts[i].z);
-  slen.push(l); stot += l;
-}
-let polyErr = 0;
-g7.walk.steps.forEach(function(s) {
+const wps = g7.walk.steps.map(function(s) {
   const ypx = (s.y + s.h) * 396;
   const xpx = (s.x + s.w / 2) * 561;
   const Z = fpx * hCam / (ypx - Hpx.y);
   const X = (xpx - Hpx.x) * Z / fpx;
-  const dist = s.idx * 60;
-  let rem = dist, si = 0;
-  while (si < slen.length && rem > slen[si]) { rem -= slen[si]; si++; }
-  if (si >= slen.length) { polyErr = 1e9; return; }
-  const t = slen[si] > 0 ? rem / slen[si] : 0;
-  const ex = wpts[si].x + (wpts[si + 1].x - wpts[si].x) * t;
-  const ez = wpts[si].z + (wpts[si + 1].z - wpts[si].z) * t;
-  polyErr = Math.max(polyErr, Math.hypot(X - ex, Z - ez));
+  return { x: X, z: Z };
 });
-console.log('walk polyline position err(cm)', polyErr.toExponential(3));
+const wb1 = worldOf(g7.walk.dirs[0].b);
+const wb2 = worldOf(g7.walk.dirs[1].b);
+const nd1 = (function() { const l = Math.hypot(wb1.x - X0w, wb1.z - Z0w) || 1; return { dx: (wb1.x - X0w) / l, dz: (wb1.z - Z0w) / l }; })();
+const nd2 = (function() { const a = wps[2]; const l = Math.hypot(wb2.x - a.x, wb2.z - a.z) || 1; return { dx: (wb2.x - a.x) / l, dz: (wb2.z - a.z) / l }; })();
+let hStepErr = 0, hDirErr = 0;
+let prev = { x: X0w, z: Z0w };
+g7.walk.steps.forEach(function(s) {
+  const P = wps[s.idx - 1];
+  const dir = s.idx <= 2 ? nd1 : nd2;
+  const vx = P.x - prev.x, vz = P.z - prev.z;
+  hStepErr = Math.max(hStepErr, Math.abs(Math.hypot(vx, vz) - 60)); // 每步位移 = 60cm
+  hDirErr = Math.max(hDirErr, Math.abs(vx * dir.dz - vz * dir.dx));
+  prev = P;
+});
+console.log('walk redir step dist err(cm)', hStepErr.toExponential(3));
+console.log('walk redir direction err(cm)', hDirErr.toExponential(3));
 
-// ---- I: 指向天空（视平线上方顶点）= 走向远处纵深：Z 增大、像变小 ----
-g7.walk.path = [ { x: f0.x, y: f0.y }, { x: f0.x + 0.05, y: (g7.h.y) - 0.05 } ];
+// ---- I: 指向天空（视平线上方方向点）= 走向远处纵深：Z 增大、像变小 ----
+g7.walk.dirs = [ { from: 1, b: { x: f0.x + 0.05, y: (g7.h.y) - 0.05 } } ];
 g7.walk.stepCount = 4;
 perspGuideWalk();
 const invZ = function(s) {

@@ -215,7 +215,7 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     };
   });
   console.log('DIRECTION PATH', JSON.stringify(pathState), 'bboxBefore', JSON.stringify(bboxBefore), 'bboxAfter', JSON.stringify(bboxAfter));
-  // P2.2：再拖一次 → 追加折点（折线路径）
+  // P2.2：再拖一次 → 就近方框改向（方向线×2）
   await page.mouse.move(paper2.x + paper2.w * 0.70, paper2.y + paper2.h * 0.22);
   await page.mouse.down();
   await page.mouse.move(paper2.x + paper2.w * 0.85, paper2.y + paper2.h * 0.30, { steps: 5 });
@@ -225,6 +225,17 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     return { readout: (document.getElementById('perspWalkReadout') || {}).textContent, clearHidden: (document.getElementById('perspClearPathBtn') || {}).hidden };
   });
   console.log('POLYLINE APPEND', JSON.stringify(polyState));
+  // 方向线手柄：按在第一条方向线的方向点 b 上拖动 → 不新增方向线（仍 方向线×2）
+  const dirBx = paper2.x + paper2.w * 0.80, dirBy = paper2.y + paper2.h * 0.30;
+  await page.mouse.move(dirBx, dirBy);
+  await page.mouse.down();
+  await page.mouse.move(dirBx + 25, dirBy + 10, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const dirHandleState = await page.evaluate(function() {
+    return { readout: (document.getElementById('perspWalkReadout') || {}).textContent };
+  });
+  console.log('DIR HANDLE DRAG (should stay 方向线×2)', JSON.stringify(dirHandleState));
   await page.evaluate(function() { const b = document.getElementById('perspClearPathBtn'); if (b) b.click(); });
   await page.waitForTimeout(300);
   const afterClear = await page.evaluate(function() {
