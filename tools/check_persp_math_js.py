@@ -132,37 +132,52 @@ console.log('calib shoulderCm', g6.character.shoulderCm.toFixed(3), 'expect', ex
 console.log('calib uCm', g6.character.uCm.toFixed(3), 'expect', expectU.toFixed(3));
 console.log('calib match', Math.abs(g6.character.shoulderCm - expectShoulder) < 1e-9 && Math.abs(g6.character.uCm - expectU) < 1e-6);
 
-// ---- F: P1.5 纵深步进：尺寸与原型 atan 公式 1:1；脚底沿 H 射线（共线）----
+// ---- F: 默认方向（画布垂直向下 = 径向朝镜头）：尺寸 = atan 公式；脚底 x 固定、y 沿垂直 ---- 
 const g7 = guideState();
-g7.lines = g7.lines.slice(0, 4);
+g7.lines = [];
 g7.vps = []; g7.h = null; g7.circleRpx = 0; g7.fov = null; g7.focalPx = 0; g7.focalMm = 0;
+VPS_LAYER.slice(0, 2).forEach(function(vp, gi) {
+  ANCHORS_LAYER[gi].forEach(function(a) {
+    const a2 = [a[0] + 0.35 * (a[0] - vp[0]), a[1] + 0.35 * (a[1] - vp[1])];
+    g7.lines.push({
+      a: { x: a[0] / 561, y: a[1] / 396 },
+      b: { x: a2[0] / 561, y: a2[1] / 396 }
+    });
+  });
+});
 perspGuideCompute();
 g7.character = { box: { x: 0.30, y: 0.35, w: 0.12, h: 0.30 }, heightCm: 160, shoulderCm: 64, uCm: 589.867 };
-g7.walk = { stepCm: 60, stepCount: 5, toward: true, steps: [] };
+g7.walk = { stepCm: 60, stepCount: 5, path: null, steps: [] };
 perspGuideWalk();
 const u0 = g7.character.uCm;
 const fovV = g7.fov.v * Math.PI / 180;
+const fpx = g7.focalPx;
+const Hpx = { x: g7.h.x * 561, y: g7.h.y * 396 };
+const F0px = { x: (g7.character.box.x + g7.character.box.w / 2) * 561, y: (g7.character.box.y + g7.character.box.h) * 396 };
+const hCam = (F0px.y - Hpx.y) * u0 / fpx;      // 正值（脚底在地平线下方）
+const Z0w = u0;
+const X0w = (F0px.x - Hpx.x) * Z0w / fpx;
+const len0 = Math.hypot(X0w, Z0w);
 let maxH = 0;
 g7.walk.steps.forEach(function(s) {
-  const u = u0 - s.idx * 60;
+  const u = Z0w * (1 - s.idx * 60 / len0);
   const hPx = (270 / fovV) * Math.atan(160 / u);
   maxH = Math.max(maxH, Math.abs(s.h * 396 - hPx));
 });
 console.log('walk steps', g7.walk.steps.length, 'max hErr(px)', maxH.toExponential(3));
 console.log('walk toward sizes grow', g7.walk.steps.length >= 2 && g7.walk.steps[0].h < g7.walk.steps[g7.walk.steps.length - 1].h);
-const H = g7.h;
-const f0 = { x: g7.character.box.x + g7.character.box.w / 2, y: g7.character.box.y + g7.character.box.h };
-// 默认方向 = 画布垂直：脚底 x 固定，y 相对 H.y 按 u0/u 缩放
+// 默认方向 = 画布垂直向下：脚底 x 固定，y = H.y + f·hCam/Z
 let vertErr = 0;
 g7.walk.steps.forEach(function(s) {
   const f = { x: s.x + s.w / 2, y: s.y + s.h };
-  const u = u0 - s.idx * 60;
-  vertErr = Math.max(vertErr, Math.abs(f.x - f0.x));
-  vertErr = Math.max(vertErr, Math.abs(f.y - (H.y + (f0.y - H.y) * (u0 / u))));
+  const u = Z0w * (1 - s.idx * 60 / len0);
+  vertErr = Math.max(vertErr, Math.abs(f.x * 561 - F0px.x));
+  vertErr = Math.max(vertErr, Math.abs(f.y * 396 - (Hpx.y + fpx * hCam / u)));
 });
 console.log('walk vertical default maxErr', vertErr.toExponential(3));
 
-// ---- G: P2.1 方向线（虚拟相机地面平面）：每步世界距离 = k×步长；矩形等比例 ----
+// ---- G: P2.1 方向线（虚拟相机地面平面）：方向正确 + 每步世界距离 = k×步长 + 等比例 ----
+const f0 = { x: g7.character.box.x + g7.character.box.w / 2, y: g7.character.box.y + g7.character.box.h };
 g7.walk.path = { a: { x: f0.x, y: f0.y }, b: { x: f0.x + 0.3, y: f0.y - 0.25 } };
 g7.walk.stepCount = 4;
 perspGuideWalk();
@@ -172,26 +187,25 @@ g7.walk.steps.forEach(function(s) {
 });
 console.log('walk ratio const err', ratioErr.toExponential(3));
 // 世界步长：反投影每步脚底 → 世界坐标，验证距起点 = k×60cm 且沿方向线方向
-const f = g7.focalPx;
-const Hpx = { x: g7.h.x * 561, y: g7.h.y * 396 };
-const F0px = { x: (g7.character.box.x + g7.character.box.w / 2) * 561, y: (g7.character.box.y + g7.character.box.h) * 396 };
-const hCam = (Hpx.y - F0px.y) * g7.character.uCm / f;
-const Z0w = g7.character.uCm;
-const X0w = (F0px.x - Hpx.x) * Z0w / f;
 const Dw = { x: g7.walk.path.b.x * 561, y: g7.walk.path.b.y * 396 };
-const ZDw = f * hCam / (Hpx.y - Dw.y);
-const XDw = (Dw.x - Hpx.x) * ZDw / f;
-const dLen = Math.hypot(XDw - X0w, ZDw - Z0w);
+const ZDw = fpx * hCam / (Dw.y - Hpx.y);
+const XDw = (Dw.x - Hpx.x) * ZDw / fpx;
 let stepErr = 0;
+let dirErr = 0;
 g7.walk.steps.forEach(function(s) {
   const ypx = (s.y + s.h) * 396;
   const xpx = (s.x + s.w / 2) * 561;
-  const Z = f * hCam / (Hpx.y - ypx);
-  const X = (xpx - Hpx.x) * Z / f;
+  const Z = fpx * hCam / (ypx - Hpx.y);
+  const X = (xpx - Hpx.x) * Z / fpx;
   const dist = Math.hypot(X - X0w, Z - Z0w);
   stepErr = Math.max(stepErr, Math.abs(dist - s.idx * 60));
+  // 方向平行：|(Vk) × (Vd)| / |Vd| ≈ 0
+  const ax = X - X0w, ay = Z - Z0w;
+  const bx = XDw - X0w, by = ZDw - Z0w;
+  dirErr = Math.max(dirErr, Math.abs(ax * by - ay * bx) / (Math.hypot(bx, by) || 1));
 });
 console.log('walk world step dist err(cm)', stepErr.toExponential(3));
+console.log('walk direction err(cm)', dirErr.toExponential(3));
 """
 
 

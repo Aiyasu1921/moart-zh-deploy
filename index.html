@@ -7876,7 +7876,6 @@
                     <input id="perspStepCountInput" type="number" min="1" step="1" value="5" style="width: 44px;">
                   </div>
                   <div class="paint-inline-row" id="perspWalkRow2" hidden="">
-                    <button id="perspDirBtn" class="paint-tool-command-btn" type="button" data-i18n="persp.dir.toward">靠近（走近）</button>
                     <button id="perspWalkGenBtn" class="paint-tool-command-btn" type="button" data-i18n="persp.walkGen">生成步进矩形</button>
                     <button id="perspClearPathBtn" class="paint-tool-command-btn" type="button" hidden="" data-i18n="persp.clearPath">清除方向线</button>
                     <strong id="perspWalkReadout">—</strong>
@@ -14291,7 +14290,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'persp.stage.captureLines': { zh: '第 1 步：拉透视线（每 2 条为一组，至少 2 组）',  ja: '手順1：透視線を引く（2本で1グループ、最低2グループ）', ko: '1단계: 소실선 그리기(2개씩 1그룹, 최소 2그룹)', en: 'Step 1: draw perspective lines (2 per group, ≥2 groups)' },
         'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
         'persp.stage.calibCharacter': { zh: '第 2 步：拖出角色矩形并输入实际身高；下方设置步长/步数，点“生成步进矩形”',  ja: '手順2：キャラ矩形をドラッグし実際の身長を入力。下で歩幅・歩数を設定し「歩行矩形を生成」', ko: '2단계: 캐릭터 사각형을 드래그하고 실제 키 입력. 아래에서 보폭·걸음 수 설정 후 "보행 사각형 생성"', en: 'Step 2: drag the character box and enter the real height; set step length/count below, then tap Generate' },
-        'persp.stage.walkPath': { zh: '第 3 步：步长/步数已就绪，点“生成步进矩形”。默认沿画布垂直方向（正对摄像机纵深）；从角色脚底中点向外拖一条方向线可改为斜向',  ja: '手順3：歩幅・歩数で「歩行矩形を生成」。初期は画布の垂直方向（カメラ正面の奥行）；キャラ足元中央から方向線をドラッグで斜めに', ko: '3단계: 보폭·걸음 수로 "보행 사각형 생성". 기본은 화면 세로 방향(카메라 정면 깊이); 캐릭터 발밑 중앙에서 방향선 드래그로 사선', en: 'Step 3: tap Generate. Default path is the canvas vertical (straight toward the camera); drag a direction line out from the character feet midpoint for diagonal' },
+        'persp.stage.walkPath': { zh: '第 3 步：步长/步数已就绪，点“生成步进矩形”。默认方向线垂直向下（走向镜头）；从角色脚底中点向任意方向拖方向线可改变走向',  ja: '手順3：歩幅・歩数で「歩行矩形を生成」。初期方向線は真下（カメラへ）；キャラ足元中央から任意方向に方向線をドラッグ', ko: '3단계: 보폭·걸음 수로 "보행 사각형 생성". 기본 방향선은 세로 아래(카메라 쪽); 캐릭터 발밑 중앙에서 임의 방향으로 드래그', en: 'Step 3: tap Generate. Default direction line points straight down (toward the camera); drag any direction out from the character feet midpoint' },
         'persp.height': { zh: '身高 cm',  ja: '身長 cm', ko: '키 cm', en: 'Height cm' },
         'persp.shoulder': { zh: '肩宽',  ja: '肩幅', ko: '어깨 너비', en: 'Shoulder' },
         'persp.u': { zh: '物距 u',  ja: '物距 u', ko: '물체 거리 u', en: 'Object distance u' },
@@ -15031,11 +15030,10 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           shoulderCm: 0,        // 由矩形宽高比换算
           uCm: 0                // 由像高占比反推的物距
         },
-        walk: {                 // P1.5 纵深步进
+        walk: {                 // P1.5/P2.1 步进
           stepCm: 60,           // 步长（cm）
           stepCount: 5,         // 步数
-          toward: true,         // true=靠近（u 减小，像变大）；false=远离
-          path: null,           // 用户拖的方向线 {a,b}（norm）；null = 默认画布垂直方向（正对摄像机纵深）
+          path: null,           // 用户拖的方向线 {a,b}（norm，a=角色脚底中点）；null = 默认画布垂直向下（走向镜头）
           steps: []             // 生成的矩形序列 [{x,y,w,h,idx,u,scale}]（norm）
         },
         drag: null              // 拖拽中的透视线 {a,b}（norm）
@@ -52064,7 +52062,6 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         g.walk.steps = [];
         g.walk.stepCm = 60;
         g.walk.stepCount = 5;
-        g.walk.toward = true;
         g.walk.path = null;
       }
       g.drag = null;
@@ -52194,7 +52191,6 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         const walkRow2 = document.getElementById('perspWalkRow2');
         const stepCmInput = document.getElementById('perspStepCmInput');
         const stepCountInput = document.getElementById('perspStepCountInput');
-        const dirBtn = document.getElementById('perspDirBtn');
         const clearPathBtn = document.getElementById('perspClearPathBtn');
         const walkReadout = document.getElementById('perspWalkReadout');
         const inCalib = g.stage === 'calibCharacter';
@@ -52225,7 +52221,6 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         if (walkRow2) walkRow2.hidden = !(inCalib || inWalk);
         if (stepCmInput && document.activeElement !== stepCmInput) stepCmInput.value = String(g.walk && g.walk.stepCm || 60);
         if (stepCountInput && document.activeElement !== stepCountInput) stepCountInput.value = String(g.walk && g.walk.stepCount || 5);
-        if (dirBtn) dirBtn.textContent = g.walk && g.walk.toward ? t('persp.dir.toward') : t('persp.dir.away');
         if (walkReadout) walkReadout.textContent = g.walk && g.walk.steps.length ? '共 ' + g.walk.steps.length + ' 步' + (g.walk.path ? '（方向线）' : '') : '—';
         if (clearPathBtn) clearPathBtn.hidden = !(inWalk && g.walk && g.walk.path);
         if (resetBtn) resetBtn.disabled = !g.lines.length && g.vps.length === 0;
@@ -52330,41 +52325,33 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           idx: k, u: u, scale: scale
         });
       };
-      if (w.path && w.path.a && w.path.b) {
-        // P2.1 虚拟相机（地面平面）：由校准反推相机高度，方向线 = 地面射线
-        const f = g.focalPx;
-        const hCam = (H.y - feet0.y) * u0 / f;
-        const Z0 = u0;
-        const X0 = (feet0.x - H.x) * Z0 / f;
+      // P2.1 虚拟相机（地面平面）——统一的一条路径：
+      //   相机高度 hCam = (feet0.y − H.y)·u0/f（正值，角色脚底在地平线下方）；
+      //   世界↔画面：x = H.x + f·X/Z，y = H.y + f·hCam/Z；
+      //   方向：有方向线则用其世界方向；没有（默认）则垂直向下 = 径向朝镜头。
+      const f = g.focalPx;
+      const hCam = (feet0.y - H.y) * u0 / f;
+      const Z0 = u0;
+      const X0 = (feet0.x - H.x) * Z0 / f;
+      let dx, dz;
+      if (w.path && w.path.b && hCam > 0) {
         const D = { x: w.path.b.x * CONTE_PAPER_WIDTH, y: w.path.b.y * CONTE_PAPER_HEIGHT };
-        let ZD = 0, XD = 0;
-        if (hCam > 0 && (H.y - D.y) > 0) {
-          ZD = f * hCam / (H.y - D.y);
-          XD = (D.x - H.x) * ZD / f;
+        if (D.y > H.y) { // 方向线端点须在地平线下方（地面上的点）
+          const ZD = f * hCam / (D.y - H.y);
+          const XD = (D.x - H.x) * ZD / f;
+          dx = XD - X0; dz = ZD - Z0;
         }
-        let dx = XD - X0, dz = ZD - Z0;
-        const len = Math.hypot(dx, dz);
-        if (!(len > 0)) { dx = X0; dz = Z0; }
-        const dl = Math.hypot(dx, dz) || 1;
-        dx /= dl; dz /= dl;
-        for (let k = 1; k <= n; k++) {
-          const Xk = X0 + dx * stepCm * k;
-          const Zk = Z0 + dz * stepCm * k;
-          if (!(Zk > 0)) break;
-          const xk = H.x + f * Xk / Zk;
-          const yk = H.y - f * hCam / Zk;
-          pushStep(xk, yk, Zk, u0 / Zk, k);
-        }
-      } else {
-        // 默认：画布垂直方向（正对摄像机纵深）
-        for (let k = 1; k <= n; k++) {
-          const u = u0 + (w.toward ? -1 : 1) * k * stepCm;
-          if (!(u > 0)) break;
-          const scale = u0 / u;
-          const fx = feet0.x;
-          const fy = H.y + (feet0.y - H.y) * scale;
-          pushStep(fx, fy, u, scale, k);
-        }
+      }
+      if (!dx && !dz) { dx = -X0; dz = -Z0; } // 默认：垂直向下（径向朝镜头）
+      const dl = Math.hypot(dx, dz) || 1;
+      dx /= dl; dz /= dl;
+      for (let k = 1; k <= n; k++) {
+        const Xk = X0 + dx * stepCm * k;
+        const Zk = Z0 + dz * stepCm * k;
+        if (!(Zk > 0)) break;
+        const xk = H.x + f * Xk / Zk;
+        const yk = H.y + f * hCam / Zk;
+        pushStep(xk, yk, Zk, u0 / Zk, k);
       }
     }
 
@@ -60635,19 +60622,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           }
         });
       }
-      // P1.5 纵深步进：方向 / 生成 / 步长步数
-      const perspDirBtn = document.getElementById('perspDirBtn');
-      if (perspDirBtn) {
-        perspDirBtn.addEventListener('click', function() {
-          const g = state.perspGuide;
-          if (g && g.walk) {
-            g.walk.toward = !g.walk.toward;
-            if (g.stage === 'walkPath') perspGuideWalk();
-            perspGuideSyncUI();
-            drawPaintStageOverlay();
-          }
-        });
-      }
+      // P1.5/P2.1 步进：生成 / 清除方向线 / 步长步数
       const perspWalkGenBtn = document.getElementById('perspWalkGenBtn');
       if (perspWalkGenBtn) perspWalkGenBtn.addEventListener('click', perspGuideWalkGen);
       const perspClearPathBtn = document.getElementById('perspClearPathBtn');

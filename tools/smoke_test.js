@@ -174,18 +174,38 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
       hint: (document.getElementById('perspStageHint') || {}).textContent,
       readout: (document.getElementById('perspWalkReadout') || {}).textContent,
       walkRowHidden: (document.getElementById('perspWalkRow') || {}).hidden,
-      dirBtn: (document.getElementById('perspDirBtn') || {}).textContent,
       overlayNonBlank: nonBlank
     };
   });
   console.log('WALK', JSON.stringify(walkState));
 
-  // P2：在画布上拖方向线 → 斜向路径；清除 → 回到垂直默认；物距 u 常显
+  // P2.1：拖方向线 → 走向应改变（蓝色步进框包围盒移动）；清除 → 回默认；物距 u 常显
+  const blueBbox = function() {
+    return page.evaluate(function() {
+      const ov = document.querySelector('.video-paint-stage-overlay');
+      let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1, found = false;
+      const d = ov.getContext('2d').getImageData(0, 0, ov.width, ov.height).data;
+      for (let y = 0; y < ov.height; y++) {
+        for (let x = 0; x < ov.width; x++) {
+          const i = (y * ov.width + x) * 4;
+          if (d[i + 2] > 200 && d[i + 1] > 130 && d[i] < 130) { // 蓝色步进框描边
+            found = true;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (!found) return null;
+      return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY };
+    });
+  };
+  const bboxBefore = await blueBbox();
   await page.mouse.move(paper2.x + paper2.w * 0.60, paper2.y + paper2.h * 0.20);
   await page.mouse.down();
   await page.mouse.move(paper2.x + paper2.w * 0.80, paper2.y + paper2.h * 0.30, { steps: 5 });
   await page.mouse.up();
   await page.waitForTimeout(400);
+  const bboxAfter = await blueBbox();
   const pathState = await page.evaluate(function() {
     return {
       readout: (document.getElementById('perspWalkReadout') || {}).textContent,
@@ -194,7 +214,7 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
       u: (document.getElementById('perspUReadout') || {}).textContent
     };
   });
-  console.log('DIRECTION PATH', JSON.stringify(pathState));
+  console.log('DIRECTION PATH', JSON.stringify(pathState), 'bboxBefore', JSON.stringify(bboxBefore), 'bboxAfter', JSON.stringify(bboxAfter));
   await page.evaluate(function() { const b = document.getElementById('perspClearPathBtn'); if (b) b.click(); });
   await page.waitForTimeout(300);
   const afterClear = await page.evaluate(function() {
