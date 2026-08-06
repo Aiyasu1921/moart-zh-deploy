@@ -7877,7 +7877,7 @@
                   </div>
                   <div class="paint-inline-row" id="perspWalkRow2" hidden="">
                     <button id="perspWalkGenBtn" class="paint-tool-command-btn" type="button" data-i18n="persp.walkGen">生成步进矩形</button>
-                    <button id="perspClearPathBtn" class="paint-tool-command-btn" type="button" hidden="" data-i18n="persp.clearPath">清除方向线</button>
+                    <button id="perspClearPathBtn" class="paint-tool-command-btn" type="button" hidden="" disabled="" data-i18n="persp.clearPath">撤销方向线</button>
                     <strong id="perspWalkReadout">—</strong>
                   </div>
                   <div class="paint-inline-row">
@@ -14290,7 +14290,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'persp.stage.captureLines': { zh: '第 1 步：拉透视线（每 2 条为一组，至少 2 组）',  ja: '手順1：透視線を引く（2本で1グループ、最低2グループ）', ko: '1단계: 소실선 그리기(2개씩 1그룹, 최소 2그룹)', en: 'Step 1: draw perspective lines (2 per group, ≥2 groups)' },
         'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
         'persp.stage.calibCharacter': { zh: '第 2 步：拖出角色矩形并输入实际身高；下方设置步长/步数，点“生成步进矩形”',  ja: '手順2：キャラ矩形をドラッグし実際の身長を入力。下で歩幅・歩数を設定し「歩行矩形を生成」', ko: '2단계: 캐릭터 사각형을 드래그하고 실제 키 입력. 아래에서 보폭·걸음 수 설정 후 "보행 사각형 생성"', en: 'Step 2: drag the character box and enter the real height; set step length/count below, then tap Generate' },
-        'persp.stage.walkPath': { zh: '第 3 步：点“生成步进矩形”后，默认垂直向下（镜头）。拖一条方向线=射线，一次生成全部步数；再在某个方框附近拉线，从该方框起改向（可多段）；方向线带手柄可调',  ja: '手順3：「歩行矩形を生成」後、初期は真下（カメラへ）。方向線（レイ）を引くと全歩数が一括生成；方框の近くで再び引くとその方框から方向転換（複数可）；方向線はハンドルで調整', ko: '3단계: "보행 사각형 생성" 후 기본은 아래(카메라 쪽). 방향선(레이)을 그리면 전체 걸음 수 일괄 생성; 상자 근처에서 다시 그리면 그 상자부터 방향 전환(여러 번 가능); 방향선은 핸들로 조정', en: 'Step 3: tap Generate (default: straight down). Drag a direction ray to place all steps at once; drag again near a box to re-direct from that box onward (repeatable); rays have adjustable handles' },
+        'persp.stage.walkPath': { zh: '第 3 步：点“生成步进矩形”后，默认垂直向下（镜头）。拖方向线=射线，一次生成全部步数；再在方框附近拉线，从该方框的“下一个”起改向（可多段）；“撤销方向线”可逐条退回',  ja: '手順3：「歩行矩形を生成」後、初期は真下（カメラへ）。方向線（レイ）で全歩数一括生成；方框の近くで再び引くとその次の方框から方向転換（複数可）；「方向線を戻す」で1本ずつ取り消し', ko: '3단계: "보행 사각형 생성" 후 기본은 아래(카메라 쪽). 방향선(레이)으로 전체 걸음 수 일괄 생성; 상자 근처에서 다시 그리면 그 다음 상자부터 방향 전환(여러 번 가능); "방향선 실행 취소"로 하나씩 되돌림', en: 'Step 3: tap Generate (default: straight down). Drag a direction ray for all steps; drag again near a box to re-direct from the NEXT box onward (repeatable); Undo steps back one ray at a time' },
         'persp.height': { zh: '身高 cm',  ja: '身長 cm', ko: '키 cm', en: 'Height cm' },
         'persp.shoulder': { zh: '肩宽',  ja: '肩幅', ko: '어깨 너비', en: 'Shoulder' },
         'persp.u': { zh: '物距 u',  ja: '物距 u', ko: '물체 거리 u', en: 'Object distance u' },
@@ -14299,7 +14299,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'persp.dir.toward': { zh: '靠近（走近）',  ja: '近づく', ko: '접근', en: 'Toward' },
         'persp.dir.away': { zh: '远离（走远）',  ja: '遠ざかる', ko: '멀어짐', en: 'Away' },
         'persp.walkGen': { zh: '生成步进矩形',  ja: '歩行矩形を生成', ko: '보행 사각형 생성', en: 'Generate steps' },
-        'persp.clearPath': { zh: '清除路径',  ja: '経路を消去', ko: '경로 지우기', en: 'Clear path' },
+        'persp.clearPath': { zh: '撤销方向线',  ja: '方向線を戻す', ko: '방향선 실행 취소', en: 'Undo direction line' },
         'persp.needThird': { zh: '已有 2 个灭点。再画一组（2 条线）得到第三个灭点后，可计算 FOV 与焦距；或直接“完成”仅保留透视线',  ja: '消失点が2つ。あと1グループ（2本）引くと画角と焦点距離が出ます。そのまま「完了」で透視線のみ保存も可', ko: '소실점 2개. 한 그룹(2개) 더 그리면 화각·초점거리 계산 가능. 그대로 "완료"로 소실선만 저장 가능', en: '2 vanishing points so far. Draw one more group (2 lines) to compute FOV/focal length, or finish now with lines only' },
         'persp.parallel': { zh: '这组两条线几乎平行，交点过远，请重画',  ja: 'この2本はほぼ平行で交点が遠すぎます。引き直してください', ko: '이 두 선은 거의 평행해서 교점이 너무 멉니다. 다시 그리세요', en: 'These two lines are nearly parallel; the intersection is too far. Redraw them' },
         'persp.needVideoMode': { zh: '透视尺需要在“映像編集”模式使用：请点击画布上方模式切换中的“映像編集”',  ja: 'パース定規は「映像編集」モードで使用します：画面上部のモード切替で「映像編集」を選んでください', ko: '원근자는 "영상 편집" 모드에서 사용하세요: 상단 모드 전환에서 "영상 편집"을 선택', en: 'The persp ruler needs Video Edit mode: switch to "映像編集" in the stage mode toggle' },
@@ -52223,6 +52223,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         if (stepCountInput && document.activeElement !== stepCountInput) stepCountInput.value = String(g.walk && g.walk.stepCount || 5);
         if (walkReadout) walkReadout.textContent = g.walk && g.walk.steps.length ? '共 ' + g.walk.steps.length + ' 步' + (g.walk.dirs && g.walk.dirs.length ? '（方向线×' + g.walk.dirs.length + '）' : '') : '—';
         if (clearPathBtn) clearPathBtn.hidden = !(inWalk && g.walk && g.walk.dirs && g.walk.dirs.length);
+        if (clearPathBtn) clearPathBtn.disabled = !(g.walk && g.walk.dirs && g.walk.dirs.length); // 撤完变灰
         if (resetBtn) resetBtn.disabled = !g.lines.length && g.vps.length === 0;
         if (visibleBtn) visibleBtn.textContent = g.visible ? t('persp.visible.hide') : t('persp.visible.show');
       } catch (e) { /* 面板刷新失败不影响主流程 */ }
@@ -52402,7 +52403,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       return null;
     }
 
-    // 方向线把手：锚点（对应方框脚底）与方向点 b；命中 < 18px
+    // 方向线把手：只设方向点 b（起点由上一方向线决定，不设锚点手柄）；命中 < 18px
     function perspGuideWalkHandleAt(event) {
       const rect = videoPaintBaseRect();
       if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
@@ -52412,16 +52413,11 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       const flip = videoViewFlipSign() < 0;
       for (let i = 0; i < w.dirs.length; i++) {
         const d = w.dirs[i];
-        const anchor = perspGuideStepFeet(d.from);
-        const pts = [{ x: d.b.x, y: d.b.y, end: 'b' }];
-        if (anchor) pts.push({ x: anchor.x / CONTE_PAPER_WIDTH, y: anchor.y / CONTE_PAPER_HEIGHT, end: 'anchor' });
-        for (let k = 0; k < pts.length; k++) {
-          const p = pts[k];
-          const nx = flip ? 1 - p.x : p.x;
-          const sx = rect.left + nx * rect.width;
-          const sy = rect.top + p.y * rect.height;
-          if (Math.hypot(event.clientX - sx, event.clientY - sy) < 18) return { dir: i, end: p.end };
-        }
+        const p = { x: d.b.x, y: d.b.y, end: 'b' };
+        const nx = flip ? 1 - p.x : p.x;
+        const sx = rect.left + nx * rect.width;
+        const sy = rect.top + p.y * rect.height;
+        if (Math.hypot(event.clientX - sx, event.clientY - sy) < 18) return { dir: i, end: p.end };
       }
       return null;
     }
@@ -52473,9 +52469,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         if (wh) {
           event.preventDefault();
           const d = g.walk.dirs[wh.dir];
-          const anchor = wh.end === 'anchor' ? perspGuideStepFeet(d.from) : null;
-          const base = wh.end === 'b' ? d.b : { x: anchor.x / CONTE_PAPER_WIDTH, y: anchor.y / CONTE_PAPER_HEIGHT };
-          g.drag = { type: 'walkdirhandle', dir: wh.dir, end: wh.end, a: base, b: pt };
+          g.drag = { type: 'walkdirhandle', dir: wh.dir, end: 'b', a: d.b, b: pt };
           drawPaintStageOverlay();
           return;
         }
@@ -52529,7 +52523,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         const dx = drag.b.x - drag.a.x, dy = drag.b.y - drag.a.y;
         if (Math.hypot(dx, dy) > 0.004) {
           if (!g.walk) g.walk = { stepCm: 60, stepCount: 5, dirs: [], steps: [] };
-          // 就近选择方框：笔尖（drag.a）最近的方框脚底中点 → 从该方框起改向（用户需求 1）
+          // 就近选择方框：笔尖（drag.a）最近的方框脚底中点 → 该方框原地不动，从它的下一个起改向
           let from = 1;
           if (g.walk.steps && g.walk.steps.length) {
             const al = { x: drag.a.x * CONTE_PAPER_WIDTH, y: drag.a.y * CONTE_PAPER_HEIGHT };
@@ -52538,31 +52532,19 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
               const dd = Math.hypot((s.x + s.w / 2) * CONTE_PAPER_WIDTH - al.x, (s.y + s.h) * CONTE_PAPER_HEIGHT - al.y);
               if (dd < best) { best = dd; from = s.idx; }
             });
+            from = from + 1; // 从最近方框的下一个开始改向
           }
           g.walk.dirs = g.walk.dirs || [];
           const existing = g.walk.dirs.findIndex(function(d) { return d.from === from; });
           const entry = { from: from, b: { x: drag.b.x, y: drag.b.y } };
           if (existing >= 0) g.walk.dirs[existing] = entry;
           else g.walk.dirs.push(entry);
-          g.walk.dirs.sort(function(a, b) { return a.from - b.from; });
           perspGuideWalk();
         }
       } else if (drag.type === 'walkdirhandle') {
         if (g.walk && g.walk.dirs && g.walk.dirs[drag.dir]) {
           const d = g.walk.dirs[drag.dir];
-          if (drag.end === 'b') {
-            d.b = { x: drag.b.x, y: drag.b.y }; // 拖方向点 → 旋转方向
-          } else if (g.walk.steps && g.walk.steps.length) {
-            // 拖锚点 → 改到离新位置最近的方框
-            const al = { x: drag.b.x * CONTE_PAPER_WIDTH, y: drag.b.y * CONTE_PAPER_HEIGHT };
-            let best = Infinity, from = d.from;
-            g.walk.steps.forEach(function(s) {
-              const dd = Math.hypot((s.x + s.w / 2) * CONTE_PAPER_WIDTH - al.x, (s.y + s.h) * CONTE_PAPER_HEIGHT - al.y);
-              if (dd < best) { best = dd; from = s.idx; }
-            });
-            d.from = from;
-          }
-          g.walk.dirs.sort(function(a, b) { return a.from - b.from; });
+          d.b = { x: drag.b.x, y: drag.b.y }; // 拖方向点 → 旋转射线（起点由上一方向线决定）
           perspGuideWalk();
         }
       } else {
@@ -52759,7 +52741,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           drawPerspGuideLabel(ctx, dispScale, String(s.idx), x + wpx / 2, y - lw(4));
         });
       }
-      // 方向线（射线）+ 小手柄（用户需求 2）：从对应方框脚底中点穿过方向点 b，无限延伸
+      // 方向线（射线）+ 小手柄：从对应方框脚底中点出发、穿过方向点 b 只向前延伸；
+      // 起点由上一方向线决定，不设起点手柄
       if (g.walk && g.walk.dirs && g.walk.dirs.length && g.stage === 'walkPath') {
         g.walk.dirs.forEach(function(d) {
           const anchor = perspGuideStepFeet(d.from);
@@ -52771,8 +52754,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           ctx.lineWidth = lw(1.3);
           ctx.setLineDash([lw(6), lw(5)]);
           ctx.beginPath();
-          ctx.moveTo(anchor.x - (dx / dl) * 3000, anchor.y - (dy / dl) * 3000);
-          ctx.lineTo(bx + (dx / dl) * 3000, by + (dy / dl) * 3000);
+          ctx.moveTo(anchor.x, anchor.y);
+          ctx.lineTo(anchor.x + (dx / dl) * 3000, anchor.y + (dy / dl) * 3000);
           ctx.stroke();
           ctx.setLineDash([]);
           ctx.fillStyle = '#ffffff';
@@ -52780,10 +52763,6 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
           ctx.lineWidth = lw(0.8);
           ctx.beginPath();
           ctx.arc(bx, by, lw(3.2), 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(anchor.x, anchor.y, lw(3.2), 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
         });
@@ -60760,8 +60739,8 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
       if (perspClearPathBtn) {
         perspClearPathBtn.addEventListener('click', function() {
           const g = state.perspGuide;
-          if (g && g.walk) {
-            g.walk.dirs = [];
+          if (g && g.walk && g.walk.dirs && g.walk.dirs.length) {
+            g.walk.dirs.pop(); // 撤销最近一条方向线（回到增加它之前）
             perspGuideWalk();
             perspGuideSyncUI();
             drawPaintStageOverlay();

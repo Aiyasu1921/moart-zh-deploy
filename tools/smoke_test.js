@@ -236,12 +236,19 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
     return { readout: (document.getElementById('perspWalkReadout') || {}).textContent };
   });
   console.log('DIR HANDLE DRAG (should stay 方向线×2)', JSON.stringify(dirHandleState));
+  // 撤销：一次撤一条 → 方向线×1；再撤 → 无方向线且按钮变灰
   await page.evaluate(function() { const b = document.getElementById('perspClearPathBtn'); if (b) b.click(); });
   await page.waitForTimeout(300);
-  const afterClear = await page.evaluate(function() {
-    return { readout: (document.getElementById('perspWalkReadout') || {}).textContent, clearHidden: (document.getElementById('perspClearPathBtn') || {}).hidden };
+  const afterUndo1 = await page.evaluate(function() {
+    return { readout: (document.getElementById('perspWalkReadout') || {}).textContent, disabled: (document.getElementById('perspClearPathBtn') || {}).disabled };
   });
-  console.log('AFTER CLEAR PATH', JSON.stringify(afterClear));
+  await page.evaluate(function() { const b = document.getElementById('perspClearPathBtn'); if (b) b.click(); });
+  await page.waitForTimeout(300);
+  const afterUndo2 = await page.evaluate(function() {
+    return { readout: (document.getElementById('perspWalkReadout') || {}).textContent, disabled: (document.getElementById('perspClearPathBtn') || {}).disabled };
+  });
+  console.log('AFTER UNDO 1 (方向线×1, enabled)', JSON.stringify(afterUndo1));
+  console.log('AFTER UNDO 2 (无方向线, disabled)', JSON.stringify(afterUndo2));
 
   // 切回“分镜用纸”→ 全部隐藏
   await page.evaluate(() => { const b = document.getElementById('paperModeBtn'); if (b) b.click(); });
