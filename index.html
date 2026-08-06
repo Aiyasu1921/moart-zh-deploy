@@ -14290,7 +14290,7 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         'persp.stage.captureLines': { zh: '第 1 步：拉透视线（每 2 条为一组，至少 2 组）',  ja: '手順1：透視線を引く（2本で1グループ、最低2グループ）', ko: '1단계: 소실선 그리기(2개씩 1그룹, 최소 2그룹)', en: 'Step 1: draw perspective lines (2 per group, ≥2 groups)' },
         'persp.stage.linesDone': { zh: '已保存“仅透视线”结果（可随时继续补第 2、3 步）',  ja: '「透視線のみ」を保存（手順2・3は後から追加可能）', ko: '"소실선만" 저장됨(2·3단계는 나중에 추가 가능)', en: 'Lines-only result saved (steps 2–3 can be added later)' },
         'persp.stage.calibCharacter': { zh: '第 2 步：拖出角色矩形并输入实际身高；下方设置步长/步数，点“生成步进矩形”',  ja: '手順2：キャラ矩形をドラッグし実際の身長を入力。下で歩幅・歩数を設定し「歩行矩形を生成」', ko: '2단계: 캐릭터 사각형을 드래그하고 실제 키 입력. 아래에서 보폭·걸음 수 설정 후 "보행 사각형 생성"', en: 'Step 2: drag the character box and enter the real height; set step length/count below, then tap Generate' },
-        'persp.stage.walkPath': { zh: '第 3 步：点“生成步进矩形”后，默认垂直向下（镜头）。拖方向线=射线，一次生成全部步数；再在方框附近拉线，从该方框的“下一个”起改向（可多段）；“撤销方向线”可逐条退回',  ja: '手順3：「歩行矩形を生成」後、初期は真下（カメラへ）。方向線（レイ）で全歩数一括生成；方框の近くで再び引くとその次の方框から方向転換（複数可）；「方向線を戻す」で1本ずつ取り消し', ko: '3단계: "보행 사각형 생성" 후 기본은 아래(카메라 쪽). 방향선(레이)으로 전체 걸음 수 일괄 생성; 상자 근처에서 다시 그리면 그 다음 상자부터 방향 전환(여러 번 가능); "방향선 실행 취소"로 하나씩 되돌림', en: 'Step 3: tap Generate (default: straight down). Drag a direction ray for all steps; drag again near a box to re-direct from the NEXT box onward (repeatable); Undo steps back one ray at a time' },
+        'persp.stage.walkPath': { zh: '第 3 步：点“生成步进矩形”后，默认垂直向下（镜头）。拖第一条方向线=射线，作用于全部步数；再拉线则从最近方框的“下一个”起改向（可多段）；“撤销方向线”可逐条退回',  ja: '手順3：「歩行矩形を生成」後、初期は真下（カメラへ）。最初の方向線（レイ）は全歩数に適用；次以降は直近方框の「次の」方框から方向転換（複数可）；「方向線を戻す」で1本ずつ取り消し', ko: '3단계: "보행 사각형 생성" 후 기본은 아래(카메라 쪽). 첫 방향선(레이)은 전체 걸음 수에 적용; 이후에는 가장 가까운 상자의 "다음" 상자부터 방향 전환(여러 번 가능); "방향선 실행 취소"로 하나씩 되돌림', en: 'Step 3: tap Generate (default: straight down). The first direction ray applies to all steps; later rays re-direct from the NEXT box after the nearest one (repeatable); Undo steps back one ray at a time' },
         'persp.height': { zh: '身高 cm',  ja: '身長 cm', ko: '키 cm', en: 'Height cm' },
         'persp.shoulder': { zh: '肩宽',  ja: '肩幅', ko: '어깨 너비', en: 'Shoulder' },
         'persp.u': { zh: '物距 u',  ja: '物距 u', ko: '물체 거리 u', en: 'Object distance u' },
@@ -52523,16 +52523,17 @@ tmxls94@gmail.com · https://github.com/moaang/moart</div>
         const dx = drag.b.x - drag.a.x, dy = drag.b.y - drag.a.y;
         if (Math.hypot(dx, dy) > 0.004) {
           if (!g.walk) g.walk = { stepCm: 60, stepCount: 5, dirs: [], steps: [] };
-          // 就近选择方框：笔尖（drag.a）最近的方框脚底中点 → 该方框原地不动，从它的下一个起改向
+          // 第一条方向线：作用于全部步数（from=1）；后续方向线：就近选择方框 →
+          // 该方框原地不动，从它的"下一个"起改向
           let from = 1;
-          if (g.walk.steps && g.walk.steps.length) {
+          if (g.walk.dirs && g.walk.dirs.length && g.walk.steps && g.walk.steps.length) {
             const al = { x: drag.a.x * CONTE_PAPER_WIDTH, y: drag.a.y * CONTE_PAPER_HEIGHT };
             let best = Infinity;
             g.walk.steps.forEach(function(s) {
               const dd = Math.hypot((s.x + s.w / 2) * CONTE_PAPER_WIDTH - al.x, (s.y + s.h) * CONTE_PAPER_HEIGHT - al.y);
               if (dd < best) { best = dd; from = s.idx; }
             });
-            from = from + 1; // 从最近方框的下一个开始改向
+            from = from + 1; // 从最近方框的下一个开始改向（最近方框保持原地）
           }
           g.walk.dirs = g.walk.dirs || [];
           const existing = g.walk.dirs.findIndex(function(d) { return d.from === from; });
