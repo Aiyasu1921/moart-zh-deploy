@@ -1,8 +1,8 @@
 name: Deploy to GitHub Pages
 
+# 停用 push 自动触发：仓库 Pages 使用 "Deploy from a branch" 内置部署，
+# 自定义工作流再触发会与内置部署抢同一环境导致 deploy 失败。仅保留手动触发。
 on:
-  push:
-    branches: [main, master, ver1.0]
   workflow_dispatch:
 
 permissions:
